@@ -113,9 +113,8 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
       if (hasTimer) resetTimer();
       await updateMatchStatus("in_progress", { current_period: match.current_period + 1 });
     } else {
-      if (!confirm("Ukončit zápas?")) return;
-      if (hasTimer) pauseTimer();
-      await updateMatchStatus("finished");
+      // Last period — just reset timer, stay active so goals can still be added
+      if (hasTimer) resetTimer();
     }
   }
 
@@ -280,7 +279,7 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
               {match.status === "paused" ? "Pokračovat" : "Pauza"}
             </Button>
             <Button variant="secondary" fullWidth onClick={handleEndPeriod}>
-              {match.current_period < match.periods_count ? "Konec třetiny" : "Konec zápasu"}
+              Konec třetiny
             </Button>
           </div>
         )}
@@ -307,7 +306,11 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
 
       {/* Activity log */}
       <div className="px-4">
-        <ActivityLog goals={goals} onEditGoal={openEditGoal} />
+        <ActivityLog
+          goals={goals}
+          onEditGoal={openEditGoal}
+          onDeleteGoal={(goalId) => handleDeleteGoal(goalId)}
+        />
       </div>
 
       {/* Goal modal */}
