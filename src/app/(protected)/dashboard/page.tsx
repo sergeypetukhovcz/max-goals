@@ -12,6 +12,17 @@ export default async function DashboardPage() {
         <p className="text-zinc-400">{user?.email}</p>
       </div>
 
+      {/* New Match CTA */}
+      <Link
+        href="/matches/new"
+        className="flex items-center justify-center gap-2 w-full rounded-xl bg-red-600 py-4 font-semibold text-white text-lg transition-colors hover:bg-red-700 active:bg-red-800"
+      >
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        Nový zápas
+      </Link>
+
       <div className="grid gap-4">
         <Link
           href="/players"
@@ -24,7 +35,7 @@ export default async function DashboardPage() {
           </div>
           <div>
             <h3 className="font-semibold text-white">Hráči</h3>
-            <p className="text-sm text-zinc-400">Spravuj profily svých dětí</p>
+            <p className="text-sm text-zinc-400">Spravuj profily svých hráčů</p>
           </div>
         </Link>
 
@@ -44,17 +55,17 @@ export default async function DashboardPage() {
         </Link>
 
         <Link
-          href="/matches"
+          href="/stats"
           className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-600/20">
             <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-semibold text-white">Zápasy</h3>
-            <p className="text-sm text-zinc-400">Zaznamenávej živé zápasy</p>
+            <h3 className="font-semibold text-white">Statistiky</h3>
+            <p className="text-sm text-zinc-400">Přehled zápasů a gólů</p>
           </div>
         </Link>
       </div>

@@ -1,8 +1,12 @@
-export default function TeamsPage() {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-white">Týmy</h2>
-      <p className="mt-2 text-zinc-400">Správa týmů bude implementována v další fázi.</p>
-    </div>
-  );
+import { createClient } from "@/lib/supabase/server";
+import { TeamList } from "@/components/teams/team-list";
+
+export default async function TeamsPage() {
+  const supabase = await createClient();
+  const { data: teams } = await supabase
+    .from("teams")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  return <TeamList teams={teams ?? []} />;
 }

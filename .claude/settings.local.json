@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(export PATH=\"$HOME/.nvm/versions/node/v24.14.0/bin:$PATH\")",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(ls \"/Users/sergeypetukhov/Desktop/Vibe Coding/Max Goals/src/components\" \"/Users/sergeypetukhov/Desktop/Vibe Coding/Max Goals/src/app/\\(protected\\)\")",
+      "Bash(wc -l \"/Users/sergeypetukhov/Desktop/Vibe Coding/Max Goals/src/components/players/player-form.tsx\" \"/Users/sergeypetukhov/Desktop/Vibe Coding/Max Goals/src/components/players/player-list.tsx\" \"/Users/sergeypetukhov/Desktop/Vibe Coding/Max Goals/src/app/\\(protected\\)/players/page.tsx\")"
     ]
   }
 }

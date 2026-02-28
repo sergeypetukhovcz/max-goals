@@ -9,7 +9,7 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "Max Goals",
-  description: "Sleduj hokejové zápasy svých dětí",
+  description: "Sleduj hokejové zápasy svých hráčů",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
