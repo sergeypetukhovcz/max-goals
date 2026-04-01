@@ -125,48 +125,46 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
           <div key={m.id} className="relative">
             <Link
               href={`/matches/${m.id}/detail`}
-              className={`flex flex-col gap-1.5 rounded-xl border p-3 pr-28 transition-colors hover:brightness-110 ${
+              className={`flex flex-col gap-1.5 rounded-xl border p-3 pr-10 transition-colors hover:brightness-110 ${
                 deletingId === m.id ? "opacity-50 pointer-events-none" : ""
               }`}
               style={{ background: cardStyle.background, borderColor: cardStyle.borderColor }}
             >
-              {/* Top row: teams + score */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="shrink-0 text-sm font-bold text-white">
+              {/* Top row: home — score — away */}
+              <div className="flex items-center min-w-0">
+                <span className="shrink min-w-0 truncate text-sm font-bold text-white">
                   {m.home_team_name}
                 </span>
-
-                <span className="shrink-0 font-mono font-bold text-base text-white" style={{ margin: "0 8px" }}>
+                <span className="shrink-0 font-mono font-bold text-base text-white px-2">
                   {homeScore}:{awayScore}
                 </span>
-
-                <span className="shrink-0 text-sm font-bold text-white">
+                <span className="shrink min-w-0 truncate text-sm font-bold text-white">
                   {m.away_team_name}
                 </span>
               </div>
 
-              {/* Bottom row: date */}
-              <p className="text-xs text-zinc-500">{formatDate(m.created_at)}</p>
+              {/* Bottom row: date + goals */}
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-zinc-500">{formatDate(m.created_at)}</p>
+                {playerGoalsInMatch > 0 && (
+                  <span className="rounded-full bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400">
+                    {playerGoalsInMatch} {playerGoalsInMatch === 1 ? "gól" : playerGoalsInMatch < 5 ? "góly" : "gólů"}
+                  </span>
+                )}
+              </div>
             </Link>
 
-            {/* Goals + delete — right side */}
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-3">
-              {playerGoalsInMatch > 0 && (
-                <span className="rounded-full bg-red-600/20 px-2.5 py-1 text-xs font-bold text-red-400">
-                  {playerGoalsInMatch} {playerGoalsInMatch === 1 ? "gól" : playerGoalsInMatch < 5 ? "góly" : "gólů"}
-                </span>
-              )}
-              <button
-                onClick={(e) => handleDelete(e, m.id)}
-                disabled={deletingId === m.id}
-                className="rounded-lg p-1.5 text-zinc-400 hover:bg-red-600/20 hover:text-red-400 disabled:opacity-50 transition-colors"
-                title="Smazat zápas"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
+            {/* Delete button */}
+            <button
+              onClick={(e) => handleDelete(e, m.id)}
+              disabled={deletingId === m.id}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 hover:bg-red-600/20 hover:text-red-400 disabled:opacity-50 transition-colors"
+              title="Smazat zápas"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
           </div>
         );
       })}

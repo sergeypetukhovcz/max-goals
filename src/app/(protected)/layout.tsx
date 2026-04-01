@@ -25,7 +25,7 @@ export default async function ProtectedLayout({
       </header>
       <main className="px-4 py-4 pb-20">{children}</main>
       <nav className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-sm safe-area-bottom">
-        <div className="flex items-center justify-around py-2">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)" }} className="items-center py-2">
           <NavLink href="/dashboard" label="Domů" icon="home" />
           <NavLink href="/players" label="Hráči" icon="players" />
           <Link
