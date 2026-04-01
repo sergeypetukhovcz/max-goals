@@ -178,6 +178,7 @@ CREATE TABLE match_players (
   player_id UUID REFERENCES players(id) ON DELETE SET NULL,
   teammate_id UUID REFERENCES teammates(id) ON DELETE SET NULL,
   is_my_player BOOLEAN NOT NULL DEFAULT FALSE,
+  is_home BOOLEAN,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT match_players_one_ref CHECK (
     (player_id IS NOT NULL AND teammate_id IS NULL) OR

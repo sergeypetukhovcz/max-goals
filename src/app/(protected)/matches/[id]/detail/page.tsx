@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { MatchDetail } from "@/components/matches/match-detail";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,11 +24,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Link href="/stats" className="rounded-lg p-1 text-zinc-400 hover:text-white">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
+        <BackButton />
         <h2 className="text-xl font-bold text-white">Detail zápasu</h2>
       </div>
 

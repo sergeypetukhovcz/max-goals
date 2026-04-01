@@ -23,6 +23,40 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function timerStorageKey(matchId: string) {
+  return `match_timer_${matchId}`;
+}
+
+function saveTimerState(matchId: string, elapsed: number, running: boolean) {
+  try {
+    localStorage.setItem(
+      timerStorageKey(matchId),
+      JSON.stringify({ elapsed, running, savedAt: running ? Date.now() : null })
+    );
+  } catch {}
+}
+
+function loadTimerState(matchId: string): { elapsed: number; running: boolean } | null {
+  try {
+    const raw = localStorage.getItem(timerStorageKey(matchId));
+    if (!raw) return null;
+    const { elapsed, running, savedAt } = JSON.parse(raw);
+    if (running && savedAt) {
+      // Restore elapsed time accounting for time passed since save
+      return { elapsed: elapsed + (Date.now() - savedAt), running: true };
+    }
+    return { elapsed, running };
+  } catch {
+    return null;
+  }
+}
+
+function clearTimerState(matchId: string) {
+  try {
+    localStorage.removeItem(timerStorageKey(matchId));
+  } catch {}
+}
+
 export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlayers, homeTeam, awayTeam }: LiveMatchProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -32,12 +66,14 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
   const [goals, setGoals] = useState(initialGoals);
   const [elapsed, setElapsed] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goalIsHome, setGoalIsHome] = useState(true);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [matchNotes, setMatchNotes] = useState(match.notes ?? "");
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   const homeScore = goals.filter((g) => g.is_home_goal).length;
   const awayScore = goals.filter((g) => !g.is_home_goal).length;
@@ -51,77 +87,111 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
 
   const hasTimer = match.period_duration_minutes !== null;
 
-  // Init Web Worker
+  // Init Web Worker + restore timer state
   useEffect(() => {
-    if (hasTimer) {
-      workerRef.current = new Worker("/match-timer-worker.js");
-      workerRef.current.onmessage = (e) => {
-        if (e.data.type === "tick") setElapsed(e.data.elapsed);
-        if (e.data.type === "paused") setElapsed(e.data.elapsed);
-        if (e.data.type === "reset") setElapsed(0);
-      };
+    if (!hasTimer) return;
+
+    workerRef.current = new Worker("/match-timer-worker.js");
+    workerRef.current.onmessage = (e) => {
+      if (e.data.type === "tick") setElapsed(e.data.elapsed);
+      if (e.data.type === "paused") setElapsed(e.data.elapsed);
+      if (e.data.type === "reset") setElapsed(0);
+    };
+
+    // Restore timer state if match is in_progress
+    if (initialMatch.status === "in_progress") {
+      const saved = loadTimerState(initialMatch.id);
+      if (saved) {
+        workerRef.current.postMessage({ type: "start", elapsed: saved.elapsed });
+        setElapsed(saved.elapsed);
+        setTimerRunning(true);
+      }
+    } else if (initialMatch.status === "paused") {
+      const saved = loadTimerState(initialMatch.id);
+      if (saved) {
+        setElapsed(saved.elapsed);
+      }
     }
+
     return () => {
       workerRef.current?.postMessage({ type: "stop" });
       workerRef.current?.terminate();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasTimer]);
 
-  const startTimer = useCallback(() => {
-    workerRef.current?.postMessage({ type: "start", elapsed });
+  const startTimer = useCallback((fromElapsed?: number) => {
+    const startFrom = fromElapsed ?? elapsed;
+    workerRef.current?.postMessage({ type: "start", elapsed: startFrom });
     setTimerRunning(true);
-  }, [elapsed]);
+    saveTimerState(initialMatch.id, startFrom, true);
+  }, [elapsed, initialMatch.id]);
 
   const pauseTimer = useCallback(() => {
     workerRef.current?.postMessage({ type: "pause" });
     setTimerRunning(false);
-  }, []);
+    setElapsed((prev) => {
+      saveTimerState(initialMatch.id, prev, false);
+      return prev;
+    });
+  }, [initialMatch.id]);
 
   const resetTimer = useCallback(() => {
     workerRef.current?.postMessage({ type: "reset" });
     setElapsed(0);
     setTimerRunning(false);
-  }, []);
+    saveTimerState(initialMatch.id, 0, false);
+  }, [initialMatch.id]);
 
   async function updateMatchStatus(status: string, updates: Record<string, unknown> = {}) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("matches")
       .update({ status, ...updates })
       .eq("id", match.id)
       .select()
       .single();
+    if (error) {
+      setError("Nepodařilo se aktualizovat stav zápasu");
+      return false;
+    }
     if (data) setMatch(data);
+    return true;
   }
 
   async function handleStartMatch() {
-    await updateMatchStatus("in_progress");
-    if (hasTimer) startTimer();
+    const ok = await updateMatchStatus("in_progress");
+    if (ok && hasTimer) startTimer(0);
   }
 
   async function handlePauseMatch() {
     if (match.status === "in_progress") {
-      await updateMatchStatus("paused");
-      if (hasTimer) pauseTimer();
+      const ok = await updateMatchStatus("paused");
+      if (ok && hasTimer) pauseTimer();
     } else if (match.status === "paused") {
-      await updateMatchStatus("in_progress");
-      if (hasTimer) startTimer();
+      const ok = await updateMatchStatus("in_progress");
+      if (ok && hasTimer) startTimer();
     }
   }
 
   async function handleEndPeriod() {
+    if (hasTimer) resetTimer();
     if (match.current_period < match.periods_count) {
-      if (hasTimer) resetTimer();
-      await updateMatchStatus("in_progress", { current_period: match.current_period + 1 });
+      await updateMatchStatus("paused", { current_period: match.current_period + 1 });
     } else {
-      // Last period — just reset timer, stay active so goals can still be added
-      if (hasTimer) resetTimer();
+      await updateMatchStatus("paused");
     }
   }
 
   async function handleFinishMatch() {
-    if (!confirm("Opravdu ukončit zápas?")) return;
     if (hasTimer) pauseTimer();
-    await updateMatchStatus("finished");
+    const ok = await updateMatchStatus("finished");
+    if (ok) {
+      clearTimerState(initialMatch.id);
+    } else {
+      // Revert timer if save failed
+      if (hasTimer && match.status === "in_progress") startTimer();
+    }
+    setShowFinishConfirm(false);
   }
 
   function openAddGoal(isHome: boolean) {
@@ -146,20 +216,21 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
     const currentTimeSeconds = hasTimer ? Math.floor(elapsed / 1000) : null;
 
     if (editingGoal) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("goals")
-        .update({
-          ...goalData,
-          note: goalData.note,
-        })
+        .update({ ...goalData, note: goalData.note })
         .eq("id", editingGoal.id)
         .select()
         .single();
+      if (error) {
+        setError("Nepodařilo se uložit gól");
+        return;
+      }
       if (data) {
         setGoals((prev) => prev.map((g) => (g.id === data.id ? data : g)));
       }
     } else {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("goals")
         .insert({
           match_id: match.id,
@@ -169,6 +240,10 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
         })
         .select()
         .single();
+      if (error) {
+        setError("Nepodařilo se přidat gól");
+        return;
+      }
       if (data) {
         setGoals((prev) => [...prev, data]);
       }
@@ -178,14 +253,25 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
   }
 
   async function handleDeleteGoal(goalId: string) {
-    await supabase.from("goals").delete().eq("id", goalId);
+    const { error } = await supabase.from("goals").delete().eq("id", goalId);
+    if (error) {
+      setError("Nepodařilo se smazat gól");
+      return;
+    }
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
     setGoalModalOpen(false);
     setEditingGoal(null);
   }
 
   async function handleSaveNotes() {
-    await supabase.from("matches").update({ notes: matchNotes.trim() || null }).eq("id", match.id);
+    const { error } = await supabase
+      .from("matches")
+      .update({ notes: matchNotes.trim() || null })
+      .eq("id", match.id);
+    if (error) {
+      setError("Nepodařilo se uložit poznámky");
+      return;
+    }
     setShowNotes(false);
   }
 
@@ -210,6 +296,18 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
           </svg>
         </button>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mx-4 flex items-center justify-between rounded-lg border border-red-800 bg-red-950 px-4 py-2">
+          <span className="text-sm text-red-400">{error}</span>
+          <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-300">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Score display */}
       <div className="flex">
@@ -284,10 +382,24 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
           </div>
         )}
 
-        {isActive && (
-          <Button variant="ghost" fullWidth onClick={handleFinishMatch} className="!text-zinc-500">
+        {isActive && !showFinishConfirm && (
+          <Button variant="ghost" fullWidth onClick={() => setShowFinishConfirm(true)} className="!text-zinc-500">
             Ukončit zápas
           </Button>
+        )}
+
+        {isActive && showFinishConfirm && (
+          <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 space-y-3">
+            <p className="text-sm text-center text-zinc-300">Opravdu ukončit zápas?</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setShowFinishConfirm(false)}>
+                Zrušit
+              </Button>
+              <Button variant="danger" fullWidth onClick={handleFinishMatch}>
+                Ukončit
+              </Button>
+            </div>
+          </div>
         )}
 
         {isFinished && (

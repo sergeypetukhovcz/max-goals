@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MatchHistory } from "@/components/stats/match-history";
+import { PlayerStats } from "@/components/stats/player-stats";
 
 export default async function PlayerStatsPage({ params }: { params: Promise<{ playerId: string }> }) {
   const { playerId } = await params;
@@ -15,18 +15,22 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
 
   if (!player) redirect("/stats");
 
-  // Get all match_players entries for this player
   const { data: matchPlayerEntries } = await supabase
     .from("match_players")
-    .select("match_id")
+    .select("match_id, is_home")
     .eq("player_id", playerId);
 
   const matchIds = (matchPlayerEntries ?? []).map((mp) => mp.match_id);
+  const playerSideMap = new Map<string, boolean | null>(
+    (matchPlayerEntries ?? []).map((mp) => [mp.match_id, mp.is_home ?? null])
+  );
 
   let matches: Array<{
     id: string;
     home_team_name: string;
     away_team_name: string;
+    home_team_id: string | null;
+    away_team_id: string | null;
     created_at: string;
     status: string;
     season: string;
@@ -37,25 +41,26 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     scorer_player_id: string | null;
   }> = [];
 
-  if (matchIds.length > 0) {
-    const { data: matchData } = await supabase
-      .from("matches")
-      .select("id, home_team_name, away_team_name, created_at, status, season")
-      .in("id", matchIds)
-      .order("created_at", { ascending: false });
-    matches = matchData ?? [];
+  const [matchesResult, goalsResult, teamsResult] = await Promise.all([
+    matchIds.length > 0
+      ? supabase
+          .from("matches")
+          .select("id, home_team_name, away_team_name, home_team_id, away_team_id, created_at, status, season")
+          .in("id", matchIds)
+          .order("created_at", { ascending: false })
+      : { data: [] },
+    matchIds.length > 0
+      ? supabase
+          .from("goals")
+          .select("match_id, is_home_goal, scorer_player_id")
+          .in("match_id", matchIds)
+      : { data: [] },
+    supabase.from("teams").select("id, name").order("name"),
+  ]);
 
-    const { data: goalData } = await supabase
-      .from("goals")
-      .select("match_id, is_home_goal, scorer_player_id")
-      .in("match_id", matchIds);
-    allGoals = goalData ?? [];
-  }
-
-  // Total goals by this player
-  const totalGoals = allGoals.filter((g) => g.scorer_player_id === playerId).length;
-  const totalMatches = matches.length;
-  const avgGoals = totalMatches > 0 ? (totalGoals / totalMatches).toFixed(1) : "0";
+  matches = matchesResult.data ?? [];
+  allGoals = goalsResult.data ?? [];
+  const teams = teamsResult.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -76,27 +81,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
         </div>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-white">{totalMatches}</p>
-          <p className="text-xs text-zinc-400">Zápasů</p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-red-400">{totalGoals}</p>
-          <p className="text-xs text-zinc-400">Gólů</p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-white">{avgGoals}</p>
-          <p className="text-xs text-zinc-400">Gólů/zápas</p>
-        </div>
-      </div>
-
-      {/* Match history */}
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-400 uppercase tracking-wider">Historie zápasů</h3>
-        <MatchHistory matches={matches} allGoals={allGoals} playerId={playerId} />
-      </div>
+      <PlayerStats matches={matches} allGoals={allGoals} playerId={playerId} teams={teams} playerSideMap={Object.fromEntries(playerSideMap)} />
     </div>
   );
 }

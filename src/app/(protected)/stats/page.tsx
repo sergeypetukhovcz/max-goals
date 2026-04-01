@@ -27,26 +27,33 @@ export default async function StatsPage() {
     );
   }
 
-  // Get quick stats for each player
-  const playerStats = await Promise.all(
-    players.map(async (player) => {
-      const { count: matchCount } = await supabase
-        .from("match_players")
-        .select("*", { count: "exact", head: true })
-        .eq("player_id", player.id);
+  // Get quick stats for all players in 2 queries
+  const playerIds = players.map((p) => p.id);
 
-      const { count: goalCount } = await supabase
-        .from("goals")
-        .select("*", { count: "exact", head: true })
-        .eq("scorer_player_id", player.id);
+  const [{ data: matchPlayerRows }, { data: goalRows }] = await Promise.all([
+    supabase.from("match_players").select("player_id").in("player_id", playerIds),
+    supabase.from("goals").select("scorer_player_id").in("scorer_player_id", playerIds),
+  ]);
 
-      return {
-        ...player,
-        matchCount: matchCount ?? 0,
-        goalCount: goalCount ?? 0,
-      };
-    })
-  );
+  const matchCountMap = new Map<string, number>();
+  const goalCountMap = new Map<string, number>();
+
+  for (const row of matchPlayerRows ?? []) {
+    if (row.player_id) {
+      matchCountMap.set(row.player_id, (matchCountMap.get(row.player_id) ?? 0) + 1);
+    }
+  }
+  for (const row of goalRows ?? []) {
+    if (row.scorer_player_id) {
+      goalCountMap.set(row.scorer_player_id, (goalCountMap.get(row.scorer_player_id) ?? 0) + 1);
+    }
+  }
+
+  const playerStats = players.map((player) => ({
+    ...player,
+    matchCount: matchCountMap.get(player.id) ?? 0,
+    goalCount: goalCountMap.get(player.id) ?? 0,
+  }));
 
   return (
     <div>

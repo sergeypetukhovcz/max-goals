@@ -49,6 +49,7 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
   // Players
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [selectedTeammateIds, setSelectedTeammateIds] = useState<string[]>([]);
+  const [myPlayersIsHome, setMyPlayersIsHome] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +176,7 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
         match_id: match.id,
         player_id: playerId,
         is_my_player: true,
+        is_home: myPlayersIsHome,
       }));
 
       // Add match players (teammates)
@@ -319,6 +321,30 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
       {/* My players */}
       <div>
         <label className="mb-2 block text-sm text-zinc-400">Moji hráči v zápase *</label>
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setMyPlayersIsHome(true)}
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              myPlayersIsHome
+                ? "bg-red-600 text-white"
+                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+            }`}
+          >
+            Hrají za domácí
+          </button>
+          <button
+            type="button"
+            onClick={() => setMyPlayersIsHome(false)}
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              !myPlayersIsHome
+                ? "bg-red-600 text-white"
+                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+            }`}
+          >
+            Hrají za hosty
+          </button>
+        </div>
         {players.length === 0 ? (
           <p className="text-sm text-zinc-500">Nejdříve přidej hráče v sekci Hráči</p>
         ) : (

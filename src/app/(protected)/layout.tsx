@@ -28,6 +28,18 @@ export default async function ProtectedLayout({
         <div className="flex items-center justify-around py-2">
           <NavLink href="/dashboard" label="Domů" icon="home" />
           <NavLink href="/players" label="Hráči" icon="players" />
+          <Link
+            href="/matches/new"
+            className="flex flex-col items-center -mt-5"
+            aria-label="Nový zápas"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 shadow-lg shadow-red-600/40 hover:bg-red-500 transition-colors">
+              <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </span>
+            <span className="text-xs text-zinc-400 mt-1">Zápas</span>
+          </Link>
           <NavLink href="/teams" label="Týmy" icon="teams" />
           <NavLink href="/stats" label="Statistiky" icon="stats" />
         </div>
