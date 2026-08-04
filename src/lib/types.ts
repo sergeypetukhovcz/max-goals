@@ -38,11 +38,33 @@ export type Teammate = {
   created_at: string;
 };
 
+export type Tournament = {
+  id: string;
+  user_id: string;
+  name: string;
+  location: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  season: string;
+  notes: string | null;
+  created_at: string;
+};
+
+export type TournamentPlayer = {
+  id: string;
+  tournament_id: string;
+  player_id: string | null;
+  teammate_id: string | null;
+  is_my_player: boolean;
+  created_at: string;
+};
+
 export type MatchStatus = "not_started" | "in_progress" | "paused" | "finished";
 
 export type Match = {
   id: string;
   user_id: string;
+  tournament_id: string | null;
   home_team_id: string | null;
   away_team_id: string | null;
   home_team_name: string;
