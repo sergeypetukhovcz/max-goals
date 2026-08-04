@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MatchHistory } from "./match-history";
+import { getMatchResult } from "@/lib/match-result";
 
 interface MatchData {
   id: string;
@@ -53,49 +54,25 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
   const filteredMatchIds = new Set(filteredMatches.map((m) => m.id));
   const filteredGoals = allGoals.filter((g) => filteredMatchIds.has(g.match_id));
 
-  const totalGoals = filteredGoals.filter((g) => g.scorer_player_id === playerId).length;
-  const totalMatches = filteredMatches.length;
+  // Summary stats count only finished matches — an unfinished game has no result yet.
+  const finishedMatches = filteredMatches.filter((m) => m.status === "finished");
+  const finishedMatchIds = new Set(finishedMatches.map((m) => m.id));
+  const finishedGoals = filteredGoals.filter((g) => finishedMatchIds.has(g.match_id));
+
+  const totalGoals = finishedGoals.filter((g) => g.scorer_player_id === playerId).length;
+  const totalMatches = finishedMatches.length;
   const avgGoals = totalMatches > 0 ? (totalGoals / totalMatches).toFixed(1) : "0";
 
-  // Derive player's team names from matches where they scored
-  const playerTeamNames = new Set<string>();
-  for (const m of filteredMatches) {
-    const playerGoals = filteredGoals.filter(
-      (g) => g.match_id === m.id && g.scorer_player_id === playerId
-    );
-    if (playerGoals.length > 0) {
-      const playerIsHome = playerGoals[0].is_home_goal;
-      playerTeamNames.add(playerIsHome ? m.home_team_name : m.away_team_name);
-    }
-  }
-
-  // Win/draw/loss counts
+  // Win/draw/loss — strictly from match_players.is_home, over finished matches only.
   let wins = 0, draws = 0, losses = 0;
-  for (const m of filteredMatches) {
-    const matchGoals = filteredGoals.filter((g) => g.match_id === m.id);
-    const playerGoals = matchGoals.filter((g) => g.scorer_player_id === playerId);
-
-    let playerIsHome: boolean | null =
-      playerSideMap[m.id] !== undefined ? playerSideMap[m.id] : null;
-    if (playerIsHome === null) {
-      if (playerGoals.length > 0) {
-        playerIsHome = playerGoals[0].is_home_goal;
-      } else if (playerTeamNames.has(m.home_team_name)) {
-        playerIsHome = true;
-      } else if (playerTeamNames.has(m.away_team_name)) {
-        playerIsHome = false;
-      }
-    }
-
-    if (playerIsHome === null) continue;
-
+  for (const m of finishedMatches) {
+    const matchGoals = finishedGoals.filter((g) => g.match_id === m.id);
     const homeScore = matchGoals.filter((g) => g.is_home_goal).length;
     const awayScore = matchGoals.filter((g) => !g.is_home_goal).length;
-    const playerScore = playerIsHome ? homeScore : awayScore;
-    const opponentScore = playerIsHome ? awayScore : homeScore;
-    if (playerScore > opponentScore) wins++;
-    else if (playerScore < opponentScore) losses++;
-    else draws++;
+    const result = getMatchResult(playerSideMap[m.id] ?? null, homeScore, awayScore);
+    if (result === "win") wins++;
+    else if (result === "loss") losses++;
+    else if (result === "draw") draws++;
   }
 
   return (

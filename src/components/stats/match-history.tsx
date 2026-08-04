@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { getMatchResult } from "@/lib/match-result";
 
 interface MatchData {
   id: string;
@@ -26,44 +27,6 @@ interface MatchHistoryProps {
   allGoals: GoalData[];
   playerId: string;
   playerSideMap: Record<string, boolean | null>;
-}
-
-type Result = "win" | "loss" | "draw" | "unknown";
-
-function getMatchResult(
-  match: MatchData,
-  matchGoals: GoalData[],
-  playerId: string,
-  playerTeamNames: Set<string>,
-  playerSideMap: Record<string, boolean | null>
-): { result: Result; playerIsHome: boolean | null } {
-  const playerGoals = matchGoals.filter((g) => g.scorer_player_id === playerId);
-  const homeScore = matchGoals.filter((g) => g.is_home_goal).length;
-  const awayScore = matchGoals.filter((g) => !g.is_home_goal).length;
-
-  // Priority: 1. DB is_home field, 2. goals, 3. team name heuristic
-  let playerIsHome: boolean | null =
-    match.id in playerSideMap ? playerSideMap[match.id] : null;
-
-  if (playerIsHome === null) {
-    if (playerGoals.length > 0) {
-      playerIsHome = playerGoals[0].is_home_goal;
-    } else if (playerTeamNames.has(match.home_team_name)) {
-      playerIsHome = true;
-    } else if (playerTeamNames.has(match.away_team_name)) {
-      playerIsHome = false;
-    }
-  }
-
-  if (playerIsHome === null) return { result: "unknown", playerIsHome: null };
-
-  const playerScore = playerIsHome ? homeScore : awayScore;
-  const opponentScore = playerIsHome ? awayScore : homeScore;
-
-  const result: Result =
-    playerScore > opponentScore ? "win" : playerScore < opponentScore ? "loss" : "draw";
-
-  return { result, playerIsHome };
 }
 
 function formatDate(dateStr: string): string {
@@ -95,18 +58,6 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
     return <p className="py-4 text-center text-sm text-zinc-500">Zatím žádné zápasy</p>;
   }
 
-  // Derive player's team names from matches where they scored
-  const playerTeamNames = new Set<string>();
-  for (const m of matches) {
-    const playerGoals = allGoals.filter(
-      (g) => g.match_id === m.id && g.scorer_player_id === playerId
-    );
-    if (playerGoals.length > 0) {
-      const playerIsHome = playerGoals[0].is_home_goal;
-      playerTeamNames.add(playerIsHome ? m.home_team_name : m.away_team_name);
-    }
-  }
-
   return (
     <div className="space-y-2">
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
@@ -115,7 +66,10 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
         const homeScore = matchGoals.filter((g) => g.is_home_goal).length;
         const awayScore = matchGoals.filter((g) => !g.is_home_goal).length;
         const playerGoalsInMatch = matchGoals.filter((g) => g.scorer_player_id === playerId).length;
-        const { result, playerIsHome } = getMatchResult(m, matchGoals, playerId, playerTeamNames, playerSideMap);
+        const result =
+          m.status === "finished"
+            ? getMatchResult(playerSideMap[m.id] ?? null, homeScore, awayScore)
+            : "unknown";
 
         const cardStyle =
           result === "win" ? { background: "rgba(20, 83, 45, 0.2)", borderColor: "rgba(22, 101, 52, 0.4)" } :
