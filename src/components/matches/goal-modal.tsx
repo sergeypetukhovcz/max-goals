@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Goal, MatchPlayer, Player, Teammate } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -22,21 +22,11 @@ interface GoalModalProps {
 }
 
 export function GoalModal({ open, onClose, isHome, goal, matchPlayers, onSave, onDelete }: GoalModalProps) {
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [selectedTeammateId, setSelectedTeammateId] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (goal) {
-      setSelectedPlayerId(goal.scorer_player_id);
-      setSelectedTeammateId(goal.scorer_teammate_id);
-      setNote(goal.note ?? "");
-    } else {
-      setSelectedPlayerId(null);
-      setSelectedTeammateId(null);
-      setNote("");
-    }
-  }, [goal, open]);
+  // Parents remount this modal via `key` when the edited goal or open state
+  // changes, so initialising from props here is enough — no syncing effect.
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(goal?.scorer_player_id ?? null);
+  const [selectedTeammateId, setSelectedTeammateId] = useState<string | null>(goal?.scorer_teammate_id ?? null);
+  const [note, setNote] = useState(goal?.note ?? "");
 
   const myPlayers = matchPlayers.filter((mp) => mp.is_my_player && mp.player);
   const teammatePlayers = matchPlayers.filter((mp) => !mp.is_my_player && mp.teammate);

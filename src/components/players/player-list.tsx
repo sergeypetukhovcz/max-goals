@@ -92,6 +92,9 @@ export function PlayerList({ players }: PlayerListProps) {
             className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3"
           >
             {player.photo_url ? (
+              // photo_url is an arbitrary external URL; next/image would need
+              // remotePatterns config for no real benefit on a small avatar.
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={player.photo_url}
                 alt={`${player.first_name} ${player.last_name}`}

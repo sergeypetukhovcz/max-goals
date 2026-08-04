@@ -395,6 +395,7 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
 
       {/* Goal modal */}
       <GoalModal
+        key={`${editingGoal?.id ?? "new"}-${goalModalOpen}`}
         open={goalModalOpen}
         onClose={() => { setGoalModalOpen(false); setEditingGoal(null); }}
         isHome={goalIsHome}

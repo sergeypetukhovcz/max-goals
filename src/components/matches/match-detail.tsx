@@ -268,6 +268,7 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
 
       {/* Goal Modal */}
       <GoalModal
+        key={`${editingGoal?.id ?? "new"}-${goalModalOpen}`}
         open={goalModalOpen}
         onClose={() => { setGoalModalOpen(false); setEditingGoal(null); }}
         isHome={addGoalIsHome}

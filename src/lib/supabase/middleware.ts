@@ -37,8 +37,12 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/login" ||
     request.nextUrl.pathname === "/register";
 
+  // The /auth/* routes (e.g. code exchange callback) must run even when there is
+  // no session yet — redirecting them to /login would break the login flow.
+  const isAuthRoute = request.nextUrl.pathname.startsWith("/auth");
+
   // Not logged in and trying to access protected route
-  if (!user && !isAuthPage && request.nextUrl.pathname !== "/") {
+  if (!user && !isAuthPage && !isAuthRoute && request.nextUrl.pathname !== "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

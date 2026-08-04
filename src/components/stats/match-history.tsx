@@ -80,7 +80,7 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
         return (
           <div key={m.id} className="relative">
             <Link
-              href={`/matches/${m.id}/detail`}
+              href={m.status === "finished" ? `/matches/${m.id}/detail` : `/matches/${m.id}`}
               className={`flex flex-col gap-1.5 rounded-xl border p-3 pr-10 transition-colors hover:brightness-110 ${
                 deletingId === m.id ? "opacity-50 pointer-events-none" : ""
               }`}
