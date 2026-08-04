@@ -55,9 +55,14 @@ export function ActivityLog({ goals, onEditGoal, onDeleteGoal }: ActivityLogProp
               {formatSeconds(goal.match_time_seconds)}
             </span>
             <span className="text-xs text-zinc-500">T{goal.period}</span>
-            <span className="text-sm text-white flex-1 truncate">
-              {goal.scorer_name ?? "Neznámý střelec"}
-            </span>
+            <div className="flex-1 min-w-0">
+              <span className="block truncate text-sm text-white">
+                {goal.scorer_name ?? "Neznámý střelec"}
+              </span>
+              {goal.assist_name && (
+                <span className="block truncate text-xs text-zinc-500">asist. {goal.assist_name}</span>
+              )}
+            </div>
             {goal.note && (
               <span className="text-xs text-zinc-500 truncate max-w-[80px]">{goal.note}</span>
             )}

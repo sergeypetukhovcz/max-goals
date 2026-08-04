@@ -20,6 +20,7 @@ interface GoalData {
   match_id: string;
   is_home_goal: boolean;
   scorer_player_id: string | null;
+  assist_player_id: string | null;
 }
 
 interface MatchHistoryProps {
@@ -66,6 +67,7 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
         const homeScore = matchGoals.filter((g) => g.is_home_goal).length;
         const awayScore = matchGoals.filter((g) => !g.is_home_goal).length;
         const playerGoalsInMatch = matchGoals.filter((g) => g.scorer_player_id === playerId).length;
+        const playerAssistsInMatch = matchGoals.filter((g) => g.assist_player_id === playerId).length;
         const result =
           m.status === "finished"
             ? getMatchResult(playerSideMap[m.id] ?? null, homeScore, awayScore)
@@ -105,6 +107,11 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
                 {playerGoalsInMatch > 0 && (
                   <span className="rounded-full bg-red-600/20 px-2 py-0.5 text-xs font-bold text-red-400">
                     {playerGoalsInMatch} {playerGoalsInMatch === 1 ? "gól" : playerGoalsInMatch < 5 ? "góly" : "gólů"}
+                  </span>
+                )}
+                {playerAssistsInMatch > 0 && (
+                  <span className="rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-bold text-blue-400">
+                    {playerAssistsInMatch} {playerAssistsInMatch === 1 ? "asistence" : playerAssistsInMatch < 5 ? "asistence" : "asistencí"}
                   </span>
                 )}
               </div>

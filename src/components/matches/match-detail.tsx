@@ -234,8 +234,13 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
                   <span className="text-xs font-mono text-zinc-400 w-10">
                     {formatSeconds(goal.match_time_seconds)}
                   </span>
-                  <span className="text-sm text-white flex-1 truncate">
-                    {goal.scorer_name ?? "Neznámý střelec"}
+                  <span className="flex-1 min-w-0 truncate">
+                    <span className="text-sm text-white">
+                      {goal.scorer_name ?? "Neznámý střelec"}
+                    </span>
+                    {goal.assist_name && (
+                      <span className="ml-1.5 text-xs text-zinc-500">asist. {goal.assist_name}</span>
+                    )}
                   </span>
                   <span className="text-xs text-zinc-400 truncate">
                     {goal.is_home_goal ? match.home_team_name : match.away_team_name}

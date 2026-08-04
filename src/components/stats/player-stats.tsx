@@ -19,6 +19,7 @@ interface GoalData {
   match_id: string;
   is_home_goal: boolean;
   scorer_player_id: string | null;
+  assist_player_id: string | null;
 }
 
 interface Team {
@@ -60,6 +61,8 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
   const finishedGoals = filteredGoals.filter((g) => finishedMatchIds.has(g.match_id));
 
   const totalGoals = finishedGoals.filter((g) => g.scorer_player_id === playerId).length;
+  const totalAssists = finishedGoals.filter((g) => g.assist_player_id === playerId).length;
+  const totalPoints = totalGoals + totalAssists;
   const totalMatches = finishedMatches.length;
   const avgGoals = totalMatches > 0 ? (totalGoals / totalMatches).toFixed(1) : "0";
 
@@ -142,6 +145,16 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
             <p className="text-2xl font-bold text-red-400">{totalGoals}</p>
             <p className="text-xs text-zinc-400">Gólů</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
+            <p className="text-2xl font-bold text-blue-400">{totalAssists}</p>
+            <p className="text-xs text-zinc-400">Asistencí</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-red-600/40 bg-red-600/10 p-4 text-center">
+            <p className="text-2xl font-bold text-white">{totalPoints}</p>
+            <p className="text-xs text-zinc-300">Kanadské body (G+A)</p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
             <p className="text-2xl font-bold text-white">{avgGoals}</p>

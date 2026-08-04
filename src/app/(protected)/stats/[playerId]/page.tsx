@@ -39,6 +39,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     match_id: string;
     is_home_goal: boolean;
     scorer_player_id: string | null;
+    assist_player_id: string | null;
   }> = [];
 
   const [matchesResult, goalsResult, teamsResult] = await Promise.all([
@@ -52,7 +53,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     matchIds.length > 0
       ? supabase
           .from("goals")
-          .select("match_id, is_home_goal, scorer_player_id")
+          .select("match_id, is_home_goal, scorer_player_id, assist_player_id")
           .in("match_id", matchIds)
       : { data: [] },
     supabase.from("teams").select("id, name").order("name"),
