@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { Match, Goal, MatchPlayer, Player, Teammate, Team } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/ui/error-banner";
 import { GoalModal } from "@/components/matches/goal-modal";
 import { EditMatchInfoModal } from "@/components/matches/edit-match-info-modal";
 
@@ -36,6 +37,7 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
   const [addGoalPeriod, setAddGoalPeriod] = useState(1);
   const [deletingMatch, setDeletingMatch] = useState(false);
   const [editInfoOpen, setEditInfoOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -81,7 +83,11 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
         .select()
         .single();
 
-      if (!error && updated) {
+      if (error) {
+        setError("Nepodařilo se uložit gól");
+        return;
+      }
+      if (updated) {
         setGoals((prev) => prev.map((g) => (g.id === editingGoal.id ? updated : g)));
       }
     } else {
@@ -100,7 +106,11 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
         .select()
         .single();
 
-      if (!error && newGoal) {
+      if (error) {
+        setError("Nepodařilo se přidat gól");
+        return;
+      }
+      if (newGoal) {
         setGoals((prev) => [...prev, newGoal]);
       }
     }
@@ -110,29 +120,35 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
 
   async function handleDeleteGoal() {
     if (!editingGoal) return;
-    await supabase.from("goals").delete().eq("id", editingGoal.id);
+    const { error } = await supabase.from("goals").delete().eq("id", editingGoal.id);
+    if (error) {
+      setError("Nepodařilo se smazat gól");
+      return;
+    }
     setGoals((prev) => prev.filter((g) => g.id !== editingGoal.id));
     setGoalModalOpen(false);
     setEditingGoal(null);
   }
 
   // --- Match deletion ---
+  // Related goals and match_players are removed automatically via ON DELETE CASCADE.
   async function handleDeleteMatch() {
     if (!confirm("Opravdu smazat tento zápas? Smaže se i všechna související data (góly, hráči v zápase).")) return;
     setDeletingMatch(true);
-    try {
-      await supabase.from("goals").delete().eq("match_id", match.id);
-      await supabase.from("match_players").delete().eq("match_id", match.id);
-      await supabase.from("matches").delete().eq("id", match.id);
-      router.push("/stats");
-      router.refresh();
-    } catch {
+    const { error } = await supabase.from("matches").delete().eq("id", match.id);
+    if (error) {
+      setError("Nepodařilo se smazat zápas");
       setDeletingMatch(false);
+      return;
     }
+    router.push("/stats");
+    router.refresh();
   }
 
   return (
     <div className="space-y-6">
+      <ErrorBanner error={error} onDismiss={() => setError(null)} />
+
       {/* Score header */}
       <div className="relative rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-center">
         {/* Edit match info button */}

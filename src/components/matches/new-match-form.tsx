@@ -130,22 +130,24 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
       // Quick-create home team if needed
       let finalHomeTeamId = homeTeamId;
       if (!finalHomeTeamId && homeTeamName.trim()) {
-        const { data: newTeam } = await supabase
+        const { data: newTeam, error: homeTeamError } = await supabase
           .from("teams")
           .insert({ user_id: userId, name: homeTeamName.trim() })
           .select("id")
           .single();
+        if (homeTeamError) throw homeTeamError;
         if (newTeam) finalHomeTeamId = newTeam.id;
       }
 
       // Quick-create away team if needed
       let finalAwayTeamId = awayTeamId;
       if (!finalAwayTeamId && awayTeamName.trim()) {
-        const { data: newTeam } = await supabase
+        const { data: newTeam, error: awayTeamError } = await supabase
           .from("teams")
           .insert({ user_id: userId, name: awayTeamName.trim() })
           .select("id")
           .single();
+        if (awayTeamError) throw awayTeamError;
         if (newTeam) finalAwayTeamId = newTeam.id;
       }
 
@@ -187,7 +189,10 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
       }));
 
       if (playerInserts.length + teammateInserts.length > 0) {
-        await supabase.from("match_players").insert([...playerInserts, ...teammateInserts]);
+        const { error: playersError } = await supabase
+          .from("match_players")
+          .insert([...playerInserts, ...teammateInserts]);
+        if (playersError) throw playersError;
       }
 
       router.push(`/matches/${match.id}`);

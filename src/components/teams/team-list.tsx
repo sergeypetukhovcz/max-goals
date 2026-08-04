@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { Team } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorBanner } from "@/components/ui/error-banner";
 import { TeamForm } from "./team-form";
 
 interface TeamListProps {
@@ -17,16 +18,21 @@ export function TeamList({ teams }: TeamListProps) {
   const [showForm, setShowForm] = useState(false);
   const [editTeam, setEditTeam] = useState<Team | undefined>();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Opravdu smazat tento tým?")) return;
+    if (!confirm("Opravdu smazat tento tým? Smaže se i celá jeho soupiska.")) return;
     setDeletingId(id);
-    await supabase.from("teams").delete().eq("id", id);
+    const { error } = await supabase.from("teams").delete().eq("id", id);
     setDeletingId(null);
+    if (error) {
+      setError("Nepodařilo se smazat tým");
+      return;
+    }
     router.refresh();
   }
 
@@ -64,6 +70,8 @@ export function TeamList({ teams }: TeamListProps) {
 
   return (
     <>
+      <ErrorBanner error={error} onDismiss={() => setError(null)} className="mb-4" />
+
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Týmy</h2>
         <Button size="sm" onClick={() => setShowForm(true)}>+ Nový tým</Button>

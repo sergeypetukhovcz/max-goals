@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Player } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorBanner } from "@/components/ui/error-banner";
 import { PlayerForm } from "./player-form";
 
 interface PlayerListProps {
@@ -29,14 +30,19 @@ export function PlayerList({ players }: PlayerListProps) {
   const [showForm, setShowForm] = useState(false);
   const [editPlayer, setEditPlayer] = useState<Player | undefined>();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   async function handleDelete(id: string) {
     if (!confirm("Opravdu smazat tohoto hráče?")) return;
     setDeletingId(id);
-    await supabase.from("players").delete().eq("id", id);
+    const { error } = await supabase.from("players").delete().eq("id", id);
     setDeletingId(null);
+    if (error) {
+      setError("Nepodařilo se smazat hráče");
+      return;
+    }
     router.refresh();
   }
 
@@ -72,6 +78,8 @@ export function PlayerList({ players }: PlayerListProps) {
 
   return (
     <>
+      <ErrorBanner error={error} onDismiss={() => setError(null)} className="mb-4" />
+
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Hráči</h2>
         <Button size="sm" onClick={() => setShowForm(true)}>+ Přidat</Button>

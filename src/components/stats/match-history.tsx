@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ErrorBanner } from "@/components/ui/error-banner";
 
 interface MatchData {
   id: string;
@@ -71,22 +72,22 @@ function formatDate(dateStr: string): string {
 
 export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: MatchHistoryProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
+  // Related goals and match_players are removed automatically via ON DELETE CASCADE.
   async function handleDelete(e: React.MouseEvent, matchId: string) {
     e.preventDefault();
     e.stopPropagation();
     if (!confirm("Opravdu smazat tento zápas? Smaže se i všechna související data (góly, hráči v zápase).")) return;
     setDeletingId(matchId);
-    try {
-      await supabase.from("goals").delete().eq("match_id", matchId);
-      await supabase.from("match_players").delete().eq("match_id", matchId);
-      await supabase.from("matches").delete().eq("id", matchId);
-    } catch {
-      // Ignore errors, refresh will show current state
-    }
+    const { error } = await supabase.from("matches").delete().eq("id", matchId);
     setDeletingId(null);
+    if (error) {
+      setError("Nepodařilo se smazat zápas");
+      return;
+    }
     router.refresh();
   }
 
@@ -108,6 +109,7 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
 
   return (
     <div className="space-y-2">
+      <ErrorBanner error={error} onDismiss={() => setError(null)} />
       {matches.map((m) => {
         const matchGoals = allGoals.filter((g) => g.match_id === m.id);
         const homeScore = matchGoals.filter((g) => g.is_home_goal).length;

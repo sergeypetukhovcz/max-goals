@@ -7,6 +7,7 @@ import type { Player, Teammate } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ErrorBanner } from "@/components/ui/error-banner";
 
 interface RosterManagerProps {
   teamId: string;
@@ -22,6 +23,7 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
   const [jerseyNumber, setJerseyNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -32,7 +34,7 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
 
   async function addMyPlayer(player: Player) {
     setLoading(true);
-    await supabase.from("teammates").insert({
+    const { error } = await supabase.from("teammates").insert({
       team_id: teamId,
       player_id: player.id,
       first_name: player.first_name,
@@ -40,6 +42,10 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
       jersey_number: player.jersey_number,
     });
     setLoading(false);
+    if (error) {
+      setError("Nepodařilo se přidat hráče do soupisky");
+      return;
+    }
     setShowAddPlayer(false);
     router.refresh();
   }
@@ -47,13 +53,17 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
   async function addManualPlayer(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await supabase.from("teammates").insert({
+    const { error } = await supabase.from("teammates").insert({
       team_id: teamId,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       jersey_number: jerseyNumber ? parseInt(jerseyNumber) : null,
     });
     setLoading(false);
+    if (error) {
+      setError("Nepodařilo se přidat spoluhráče");
+      return;
+    }
     setFirstName("");
     setLastName("");
     setJerseyNumber("");
@@ -64,13 +74,19 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
   async function removeFromRoster(id: string) {
     if (!confirm("Odebrat hráče ze soupisky?")) return;
     setDeletingId(id);
-    await supabase.from("teammates").delete().eq("id", id);
+    const { error } = await supabase.from("teammates").delete().eq("id", id);
     setDeletingId(null);
+    if (error) {
+      setError("Nepodařilo se odebrat hráče ze soupisky");
+      return;
+    }
     router.refresh();
   }
 
   return (
     <div>
+      <ErrorBanner error={error} onDismiss={() => setError(null)} className="mb-3" />
+
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white">Soupiska</h3>
         <div className="flex gap-2">
