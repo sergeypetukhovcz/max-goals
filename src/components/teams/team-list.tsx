@@ -128,7 +128,7 @@ export function TeamList({ teams, myPlayerTeamIds }: TeamListProps) {
             <Button onClick={() => setShowForm(true)}>+ Nový tým</Button>
           }
         />
-        <TeamForm open={showForm} onClose={closeForm} />
+        <TeamForm key={`new-${showForm}`} open={showForm} onClose={closeForm} />
       </>
     );
   }
@@ -198,7 +198,7 @@ export function TeamList({ teams, myPlayerTeamIds }: TeamListProps) {
         </div>
       )}
 
-      <TeamForm team={editTeam} open={showForm} onClose={closeForm} />
+      <TeamForm key={`${editTeam?.id ?? "new"}-${showForm}`} team={editTeam} open={showForm} onClose={closeForm} />
     </>
   );
 }

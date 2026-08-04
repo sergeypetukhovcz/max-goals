@@ -71,7 +71,7 @@ export function PlayerList({ players }: PlayerListProps) {
             <Button onClick={() => setShowForm(true)}>+ Přidat hráče</Button>
           }
         />
-        <PlayerForm open={showForm} onClose={closeForm} />
+        <PlayerForm key={`new-${showForm}`} open={showForm} onClose={closeForm} />
       </>
     );
   }
@@ -147,7 +147,7 @@ export function PlayerList({ players }: PlayerListProps) {
         ))}
       </div>
 
-      <PlayerForm player={editPlayer} open={showForm} onClose={closeForm} />
+      <PlayerForm key={`${editPlayer?.id ?? "new"}-${showForm}`} player={editPlayer} open={showForm} onClose={closeForm} />
     </>
   );
 }
