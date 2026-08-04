@@ -53,6 +53,8 @@ export type Match = {
   notes: string | null;
   status: MatchStatus;
   current_period: number;
+  timer_elapsed_seconds: number;
+  timer_started_at: string | null;
   created_at: string;
 };
 

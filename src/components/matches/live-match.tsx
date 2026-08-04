@@ -23,38 +23,16 @@ function formatTime(ms: number): string {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function timerStorageKey(matchId: string) {
-  return `match_timer_${matchId}`;
-}
-
-function saveTimerState(matchId: string, elapsed: number, running: boolean) {
-  try {
-    localStorage.setItem(
-      timerStorageKey(matchId),
-      JSON.stringify({ elapsed, running, savedAt: running ? Date.now() : null })
-    );
-  } catch {}
-}
-
-function loadTimerState(matchId: string): { elapsed: number; running: boolean } | null {
-  try {
-    const raw = localStorage.getItem(timerStorageKey(matchId));
-    if (!raw) return null;
-    const { elapsed, running, savedAt } = JSON.parse(raw);
-    if (running && savedAt) {
-      // Restore elapsed time accounting for time passed since save
-      return { elapsed: elapsed + (Date.now() - savedAt), running: true };
-    }
-    return { elapsed, running };
-  } catch {
-    return null;
+// Reconstruct elapsed time (ms) from the DB-persisted timer fields, so a
+// running match survives a reload or shows correctly on another device.
+// While running, timer_started_at marks the current segment start and
+// timer_elapsed_seconds holds the time accumulated in earlier segments.
+function elapsedFromMatch(m: Match): number {
+  const baseMs = (m.timer_elapsed_seconds ?? 0) * 1000;
+  if (m.timer_started_at) {
+    return baseMs + (Date.now() - new Date(m.timer_started_at).getTime());
   }
-}
-
-function clearTimerState(matchId: string) {
-  try {
-    localStorage.removeItem(timerStorageKey(matchId));
-  } catch {}
+  return baseMs;
 }
 
 export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlayers, homeTeam, awayTeam }: LiveMatchProps) {
@@ -65,7 +43,6 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
   const [match, setMatch] = useState(initialMatch);
   const [goals, setGoals] = useState(initialGoals);
   const [elapsed, setElapsed] = useState(0);
-  const [timerRunning, setTimerRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [goalModalOpen, setGoalModalOpen] = useState(false);
@@ -87,30 +64,21 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
 
   const hasTimer = match.period_duration_minutes !== null;
 
-  // Init Web Worker + restore timer state
+  // Init Web Worker + restore timer state from the DB-persisted fields
   useEffect(() => {
     if (!hasTimer) return;
 
     workerRef.current = new Worker("/match-timer-worker.js");
     workerRef.current.onmessage = (e) => {
-      if (e.data.type === "tick") setElapsed(e.data.elapsed);
-      if (e.data.type === "paused") setElapsed(e.data.elapsed);
+      if (e.data.type === "tick" || e.data.type === "paused") setElapsed(e.data.elapsed);
       if (e.data.type === "reset") setElapsed(0);
     };
 
-    // Restore timer state if match is in_progress
-    if (initialMatch.status === "in_progress") {
-      const saved = loadTimerState(initialMatch.id);
-      if (saved) {
-        workerRef.current.postMessage({ type: "start", elapsed: saved.elapsed });
-        setElapsed(saved.elapsed);
-        setTimerRunning(true);
-      }
-    } else if (initialMatch.status === "paused") {
-      const saved = loadTimerState(initialMatch.id);
-      if (saved) {
-        setElapsed(saved.elapsed);
-      }
+    const restored = elapsedFromMatch(initialMatch);
+    setElapsed(restored);
+    // Resume ticking only if the match is actively running.
+    if (initialMatch.status === "in_progress" && initialMatch.timer_started_at) {
+      workerRef.current.postMessage({ type: "start", elapsed: restored });
     }
 
     return () => {
@@ -121,27 +89,17 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
   }, [hasTimer]);
 
   const startTimer = useCallback((fromElapsed?: number) => {
-    const startFrom = fromElapsed ?? elapsed;
-    workerRef.current?.postMessage({ type: "start", elapsed: startFrom });
-    setTimerRunning(true);
-    saveTimerState(initialMatch.id, startFrom, true);
-  }, [elapsed, initialMatch.id]);
+    workerRef.current?.postMessage({ type: "start", elapsed: fromElapsed ?? elapsed });
+  }, [elapsed]);
 
   const pauseTimer = useCallback(() => {
     workerRef.current?.postMessage({ type: "pause" });
-    setTimerRunning(false);
-    setElapsed((prev) => {
-      saveTimerState(initialMatch.id, prev, false);
-      return prev;
-    });
-  }, [initialMatch.id]);
+  }, []);
 
   const resetTimer = useCallback(() => {
     workerRef.current?.postMessage({ type: "reset" });
     setElapsed(0);
-    setTimerRunning(false);
-    saveTimerState(initialMatch.id, 0, false);
-  }, [initialMatch.id]);
+  }, []);
 
   async function updateMatchStatus(status: string, updates: Record<string, unknown> = {}) {
     const { data, error } = await supabase
@@ -159,38 +117,48 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
   }
 
   async function handleStartMatch() {
-    const ok = await updateMatchStatus("in_progress");
-    if (ok && hasTimer) startTimer(0);
+    const ok = await updateMatchStatus(
+      "in_progress",
+      hasTimer ? { timer_elapsed_seconds: 0, timer_started_at: new Date().toISOString() } : {}
+    );
+    if (ok && hasTimer) {
+      setElapsed(0);
+      startTimer(0);
+    }
   }
 
   async function handlePauseMatch() {
     if (match.status === "in_progress") {
-      const ok = await updateMatchStatus("paused");
+      // Freeze the accumulated time and clear the running-segment marker.
+      const ok = await updateMatchStatus(
+        "paused",
+        hasTimer ? { timer_elapsed_seconds: Math.floor(elapsed / 1000), timer_started_at: null } : {}
+      );
       if (ok && hasTimer) pauseTimer();
     } else if (match.status === "paused") {
-      const ok = await updateMatchStatus("in_progress");
+      const ok = await updateMatchStatus(
+        "in_progress",
+        hasTimer ? { timer_started_at: new Date().toISOString() } : {}
+      );
       if (ok && hasTimer) startTimer();
     }
   }
 
   async function handleEndPeriod() {
-    if (hasTimer) resetTimer();
-    if (match.current_period < match.periods_count) {
-      await updateMatchStatus("paused", { current_period: match.current_period + 1 });
-    } else {
-      await updateMatchStatus("paused");
-    }
+    // Persist first, reset the local timer only after the DB confirms.
+    const timerReset = hasTimer ? { timer_elapsed_seconds: 0, timer_started_at: null } : {};
+    const nextPeriod =
+      match.current_period < match.periods_count ? { current_period: match.current_period + 1 } : {};
+    const ok = await updateMatchStatus("paused", { ...timerReset, ...nextPeriod });
+    if (ok && hasTimer) resetTimer();
   }
 
   async function handleFinishMatch() {
-    if (hasTimer) pauseTimer();
-    const ok = await updateMatchStatus("finished");
-    if (ok) {
-      clearTimerState(initialMatch.id);
-    } else {
-      // Revert timer if save failed
-      if (hasTimer && match.status === "in_progress") startTimer();
-    }
+    const ok = await updateMatchStatus(
+      "finished",
+      hasTimer ? { timer_elapsed_seconds: Math.floor(elapsed / 1000), timer_started_at: null } : {}
+    );
+    if (ok && hasTimer) pauseTimer();
     setShowFinishConfirm(false);
   }
 

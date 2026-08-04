@@ -155,6 +155,8 @@ CREATE TABLE matches (
   notes TEXT,
   status TEXT NOT NULL DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'paused', 'finished')),
   current_period INT NOT NULL DEFAULT 1,
+  timer_elapsed_seconds INT NOT NULL DEFAULT 0,
+  timer_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
