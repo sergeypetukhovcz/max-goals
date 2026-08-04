@@ -62,6 +62,7 @@ export type MatchPlayer = {
   player_id: string | null;
   teammate_id: string | null;
   is_my_player: boolean;
+  is_home: boolean | null;
   created_at: string;
 };
 

@@ -181,11 +181,12 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
         is_home: myPlayersIsHome,
       }));
 
-      // Add match players (teammates)
+      // Add match players (teammates) — same side as my players
       const teammateInserts = selectedTeammateIds.map((teammateId) => ({
         match_id: match.id,
         teammate_id: teammateId,
         is_my_player: false,
+        is_home: myPlayersIsHome,
       }));
 
       if (playerInserts.length + teammateInserts.length > 0) {

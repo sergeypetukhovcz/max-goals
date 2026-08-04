@@ -180,11 +180,13 @@ export function ImportForm() {
 
         if (matchError) throw new Error(`Match ${i + 1}: ${matchError.message}`);
 
-        await supabase.from("match_players").insert({
+        const { error: mpError } = await supabase.from("match_players").insert({
           match_id: match!.id,
           player_id: playerId,
           is_my_player: true,
+          is_home: m.tepliceIsHome,
         });
+        if (mpError) throw new Error(`Match player ${i + 1}: ${mpError.message}`);
 
         const goals: Array<{
           match_id: string;
