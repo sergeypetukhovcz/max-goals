@@ -98,7 +98,12 @@ export function ScheduleView({ tournaments, standaloneMatches, players, teammate
 
       {/* Standalone planned matches */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">Naplánované zápasy</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">Naplánované zápasy</h3>
+          <Link href="/matches/new">
+            <Button size="sm">+ Nový zápas</Button>
+          </Link>
+        </div>
         {standaloneMatches.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-800 py-6 text-center text-sm text-zinc-500">
             Žádné rozehrané ani připravené zápasy mimo turnaj
