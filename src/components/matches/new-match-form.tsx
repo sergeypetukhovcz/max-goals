@@ -13,6 +13,10 @@ interface NewMatchFormProps {
   teams: Team[];
   players: Player[];
   teammates: Teammate[];
+  tournaments?: { id: string; name: string }[];
+  initialTournamentId?: string | null;
+  initialPlayerIds?: string[];
+  initialTeammateIds?: string[];
 }
 
 function getCurrentSeason(): string {
@@ -24,9 +28,19 @@ function getCurrentSeason(): string {
   return `${year - 1}-${year}`;
 }
 
-export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
+export function NewMatchForm({
+  teams,
+  players,
+  teammates,
+  tournaments = [],
+  initialTournamentId = null,
+  initialPlayerIds = [],
+  initialTeammateIds = [],
+}: NewMatchFormProps) {
   const router = useRouter();
   const supabase = createClient();
+
+  const [tournamentId, setTournamentId] = useState<string | null>(initialTournamentId);
 
   // Team selection
   const [homeTeamId, setHomeTeamId] = useState<string | null>(null);
@@ -47,8 +61,8 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
   const [notes, setNotes] = useState("");
 
   // Players
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
-  const [selectedTeammateIds, setSelectedTeammateIds] = useState<string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>(initialPlayerIds);
+  const [selectedTeammateIds, setSelectedTeammateIds] = useState<string[]>(initialTeammateIds);
   const [myPlayersIsHome, setMyPlayersIsHome] = useState<boolean>(true);
 
   const [loading, setLoading] = useState(false);
@@ -64,10 +78,17 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
     [teams, awaySearch]
   );
 
-  // Get roster of selected home team
-  const homeRoster = useMemo(
-    () => (homeTeamId ? teammates.filter((t) => t.team_id === homeTeamId) : []),
-    [homeTeamId, teammates]
+  // Teammates offered as checkboxes: the selected home team's roster plus any
+  // already-nominated teammates (which may come from another team's roster).
+  // My players are excluded — they are picked in their own section.
+  const visibleTeammates = useMemo(
+    () =>
+      teammates.filter(
+        (t) =>
+          (t.team_id === homeTeamId || selectedTeammateIds.includes(t.id)) &&
+          !selectedPlayerIds.includes(t.player_id ?? "")
+      ),
+    [teammates, homeTeamId, selectedTeammateIds, selectedPlayerIds]
   );
 
   function selectHomeTeam(team: Team) {
@@ -156,6 +177,7 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
         .from("matches")
         .insert({
           user_id: userId,
+          tournament_id: tournamentId,
           home_team_id: finalHomeTeamId,
           away_team_id: finalAwayTeamId,
           home_team_name: homeTeamName.trim(),
@@ -207,6 +229,31 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
         <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {/* Tournament (optional) */}
+      {tournaments.length > 0 && (
+        <div>
+          <label className="mb-1 block text-sm text-zinc-400">Turnaj (volitelné)</label>
+          <div className="relative">
+            <select
+              value={tournamentId ?? ""}
+              onChange={(e) => setTournamentId(e.target.value || null)}
+              className="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 pr-10 text-white focus:border-red-500 focus:outline-none"
+            >
+              <option value="">Bez turnaje</option>
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <svg
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
       )}
 
       {/* Home team */}
@@ -391,13 +438,12 @@ export function NewMatchForm({ teams, players, teammates }: NewMatchFormProps) {
         )}
       </div>
 
-      {/* Team roster players (if a home team with roster is selected) */}
-      {homeRoster.length > 0 && (
+      {/* Team roster + nominated teammates */}
+      {visibleTeammates.length > 0 && (
         <div>
           <label className="mb-2 block text-sm text-zinc-400">Hráči ze soupisky</label>
           <div className="space-y-2">
-            {homeRoster
-              .filter((t) => !selectedPlayerIds.includes(t.player_id ?? ""))
+            {visibleTeammates
               .map((mate) => (
                 <label
                   key={mate.id}
