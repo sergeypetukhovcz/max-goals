@@ -14,6 +14,7 @@ interface MatchData {
   created_at: string;
   status: string;
   season: string;
+  tournament_name: string | null;
 }
 
 interface GoalData {
@@ -112,6 +113,11 @@ export function MatchHistory({ matches, allGoals, playerId, playerSideMap }: Mat
                 {playerAssistsInMatch > 0 && (
                   <span className="rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-bold text-blue-400">
                     {playerAssistsInMatch} {playerAssistsInMatch === 1 ? "asistence" : playerAssistsInMatch < 5 ? "asistence" : "asistencí"}
+                  </span>
+                )}
+                {m.tournament_name && (
+                  <span className="max-w-[150px] truncate rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-300">
+                    🏆 {m.tournament_name}
                   </span>
                 )}
               </div>

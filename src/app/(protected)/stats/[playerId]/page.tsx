@@ -34,6 +34,8 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     created_at: string;
     status: string;
     season: string;
+    tournament_id: string | null;
+    tournament_name: string | null;
   }> = [];
   let allGoals: Array<{
     match_id: string;
@@ -46,7 +48,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     matchIds.length > 0
       ? supabase
           .from("matches")
-          .select("id, home_team_name, away_team_name, home_team_id, away_team_id, created_at, status, season")
+          .select("id, home_team_name, away_team_name, home_team_id, away_team_id, created_at, status, season, tournament_id, tournament:tournaments(name)")
           .in("id", matchIds)
           .order("created_at", { ascending: false })
       : { data: [] },
@@ -59,7 +61,18 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     supabase.from("teams").select("id, name").order("name"),
   ]);
 
-  matches = matchesResult.data ?? [];
+  matches = (matchesResult.data ?? []).map((m: Record<string, unknown>) => ({
+    id: m.id as string,
+    home_team_name: m.home_team_name as string,
+    away_team_name: m.away_team_name as string,
+    home_team_id: (m.home_team_id as string | null) ?? null,
+    away_team_id: (m.away_team_id as string | null) ?? null,
+    created_at: m.created_at as string,
+    status: m.status as string,
+    season: m.season as string,
+    tournament_id: (m.tournament_id as string | null) ?? null,
+    tournament_name: (m.tournament as { name: string } | null)?.name ?? null,
+  }));
   allGoals = goalsResult.data ?? [];
   const teams = teamsResult.data ?? [];
 

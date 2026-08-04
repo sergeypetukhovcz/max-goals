@@ -13,6 +13,8 @@ interface MatchData {
   created_at: string;
   status: string;
   season: string;
+  tournament_id: string | null;
+  tournament_name: string | null;
 }
 
 interface GoalData {
@@ -41,6 +43,14 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
     seasons.length > 0 ? seasons[0] : null
   );
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
+
+  // Distinct tournaments the player took part in (for the filter dropdown).
+  const tournamentOptions = [
+    ...new Map(
+      matches.filter((m) => m.tournament_id).map((m) => [m.tournament_id as string, m.tournament_name ?? "Turnaj"])
+    ).entries(),
+  ];
 
   const filteredMatches = matches.filter((m) => {
     if (selectedSeason && m.season !== selectedSeason) return false;
@@ -49,6 +59,7 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
         m.home_team_id === selectedTeamId || m.away_team_id === selectedTeamId;
       if (!teamMatches) return false;
     }
+    if (selectedTournamentId && m.tournament_id !== selectedTournamentId) return false;
     return true;
   });
 
@@ -123,6 +134,29 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
               <option value="">Všechny týmy</option>
               {teams.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <svg
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        )}
+
+        {/* Tournament filter */}
+        {tournamentOptions.length > 0 && (
+          <div className="relative">
+            <select
+              value={selectedTournamentId}
+              onChange={(e) => setSelectedTournamentId(e.target.value)}
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 pr-10 text-sm text-white focus:border-red-500 focus:outline-none"
+              style={{ appearance: "none", WebkitAppearance: "none", height: "42px" }}
+            >
+              <option value="">Všechny turnaje</option>
+              {tournamentOptions.map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
               ))}
             </select>
             <svg
