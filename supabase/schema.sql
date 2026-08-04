@@ -219,6 +219,9 @@ CREATE TABLE goals (
   scorer_player_id UUID REFERENCES players(id) ON DELETE SET NULL,
   scorer_teammate_id UUID REFERENCES teammates(id) ON DELETE SET NULL,
   scorer_name TEXT,
+  assist_player_id UUID REFERENCES players(id) ON DELETE SET NULL,
+  assist_teammate_id UUID REFERENCES teammates(id) ON DELETE SET NULL,
+  assist_name TEXT,
   note TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -257,3 +260,4 @@ CREATE INDEX idx_match_players_match_id ON match_players(match_id);
 CREATE INDEX idx_match_players_player_id ON match_players(player_id);
 CREATE INDEX idx_goals_match_id ON goals(match_id);
 CREATE INDEX idx_goals_scorer_player ON goals(scorer_player_id);
+CREATE INDEX idx_goals_assist_player ON goals(assist_player_id);

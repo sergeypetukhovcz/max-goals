@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Match, Goal, MatchPlayer, Player, Teammate, Team } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
-import { GoalModal } from "@/components/matches/goal-modal";
+import { GoalModal, type GoalFormData } from "@/components/matches/goal-modal";
 import { EditMatchInfoModal } from "@/components/matches/edit-match-info-modal";
 
 interface MatchDetailProps {
@@ -63,13 +63,7 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
     setGoalModalOpen(true);
   }
 
-  async function handleSaveGoal(data: {
-    is_home_goal: boolean;
-    scorer_player_id: string | null;
-    scorer_teammate_id: string | null;
-    scorer_name: string | null;
-    note: string | null;
-  }) {
+  async function handleSaveGoal(data: GoalFormData) {
     if (editingGoal) {
       const { data: updated, error } = await supabase
         .from("goals")
@@ -77,6 +71,9 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
           scorer_player_id: data.scorer_player_id,
           scorer_teammate_id: data.scorer_teammate_id,
           scorer_name: data.scorer_name,
+          assist_player_id: data.assist_player_id,
+          assist_teammate_id: data.assist_teammate_id,
+          assist_name: data.assist_name,
           note: data.note,
         })
         .eq("id", editingGoal.id)
@@ -101,6 +98,9 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
           scorer_player_id: data.scorer_player_id,
           scorer_teammate_id: data.scorer_teammate_id,
           scorer_name: data.scorer_name,
+          assist_player_id: data.assist_player_id,
+          assist_teammate_id: data.assist_teammate_id,
+          assist_name: data.assist_name,
           note: data.note,
         })
         .select()

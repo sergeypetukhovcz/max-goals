@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { Match, Goal, MatchPlayer, Player, Teammate, Team } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { GoalModal } from "./goal-modal";
+import { GoalModal, type GoalFormData } from "./goal-modal";
 import { ActivityLog } from "./activity-log";
 
 interface LiveMatchProps {
@@ -174,13 +174,7 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
     setGoalModalOpen(true);
   }
 
-  async function handleSaveGoal(goalData: {
-    is_home_goal: boolean;
-    scorer_player_id: string | null;
-    scorer_teammate_id: string | null;
-    scorer_name: string | null;
-    note: string | null;
-  }) {
+  async function handleSaveGoal(goalData: GoalFormData) {
     const currentTimeSeconds = hasTimer ? Math.floor(elapsed / 1000) : null;
 
     if (editingGoal) {

@@ -77,6 +77,9 @@ export type Goal = {
   scorer_player_id: string | null;
   scorer_teammate_id: string | null;
   scorer_name: string | null;
+  assist_player_id: string | null;
+  assist_teammate_id: string | null;
+  assist_name: string | null;
   note: string | null;
   created_at: string;
 };
