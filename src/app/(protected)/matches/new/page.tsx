@@ -14,7 +14,7 @@ export default async function NewMatchPage({
     supabase.from("teams").select("*").order("name"),
     supabase.from("players").select("*").order("first_name"),
     supabase.from("teammates").select("*").order("first_name"),
-    supabase.from("tournaments").select("id, name").order("start_date", { ascending: false, nullsFirst: false }),
+    supabase.from("tournaments").select("id, name, start_date, end_date").order("start_date", { ascending: false, nullsFirst: false }),
   ]);
 
   // If arriving from a tournament, preselect its nominated players.

@@ -13,7 +13,7 @@ interface NewMatchFormProps {
   teams: Team[];
   players: Player[];
   teammates: Teammate[];
-  tournaments?: { id: string; name: string }[];
+  tournaments?: { id: string; name: string; start_date?: string | null; end_date?: string | null }[];
   initialTournamentId?: string | null;
   initialPlayerIds?: string[];
   initialTeammateIds?: string[];
@@ -26,6 +26,14 @@ function getCurrentSeason(): string {
   // If July or later, season is YYYY-(YYYY+1). If before July, (YYYY-1)-YYYY.
   if (month >= 6) return `${year}-${year + 1}`;
   return `${year - 1}-${year}`;
+}
+
+function tournamentLabel(t: { name: string; start_date?: string | null; end_date?: string | null }): string {
+  if (!t.start_date) return t.name;
+  const fmt = (d: string) => new Date(d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
+  const date =
+    t.end_date && t.end_date !== t.start_date ? `${fmt(t.start_date)} – ${fmt(t.end_date)}` : fmt(t.start_date);
+  return `${t.name} — ${date}`;
 }
 
 export function NewMatchForm({
@@ -243,7 +251,7 @@ export function NewMatchForm({
             >
               <option value="">Bez turnaje</option>
               {tournaments.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{tournamentLabel(t)}</option>
               ))}
             </select>
             <svg
