@@ -8,5 +8,12 @@ export default async function TeamsPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  return <TeamList teams={teams ?? []} />;
+  // Teams whose roster includes one of my players — shown at the top of the list.
+  const { data: myRosterRows } = await supabase
+    .from("teammates")
+    .select("team_id")
+    .not("player_id", "is", null);
+  const myPlayerTeamIds = [...new Set((myRosterRows ?? []).map((r) => r.team_id))];
+
+  return <TeamList teams={teams ?? []} myPlayerTeamIds={myPlayerTeamIds} />;
 }
