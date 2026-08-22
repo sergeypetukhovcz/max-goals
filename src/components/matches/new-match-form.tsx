@@ -28,6 +28,18 @@ function getCurrentSeason(): string {
   return `${year - 1}-${year}`;
 }
 
+// datetime-local value: tournament's start date (if any) at the current time, so
+// pre-planned matches carry the tournament day while keeping a stable order.
+function defaultMatchDate(tournamentStart?: string | null): string {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const datePart = tournamentStart
+    ? tournamentStart.slice(0, 10)
+    : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return `${datePart}T${time}`;
+}
+
 function tournamentLabel(t: { name: string; start_date?: string | null; end_date?: string | null }): string {
   if (!t.start_date) return t.name;
   const fmt = (d: string) => new Date(d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
@@ -49,6 +61,14 @@ export function NewMatchForm({
   const supabase = createClient();
 
   const [tournamentId, setTournamentId] = useState<string | null>(initialTournamentId);
+  const [matchDate, setMatchDate] = useState(() =>
+    defaultMatchDate(tournaments.find((t) => t.id === initialTournamentId)?.start_date)
+  );
+
+  function handleTournamentChange(id: string | null) {
+    setTournamentId(id);
+    setMatchDate(defaultMatchDate(tournaments.find((t) => t.id === id)?.start_date));
+  }
 
   // Team selection
   const [homeTeamId, setHomeTeamId] = useState<string | null>(null);
@@ -196,6 +216,7 @@ export function NewMatchForm({
           notes: notes.trim() || null,
           status: "not_started",
           current_period: 1,
+          created_at: new Date(matchDate).toISOString(),
         })
         .select("id")
         .single();
@@ -226,7 +247,10 @@ export function NewMatchForm({
         if (playersError) throw playersError;
       }
 
-      router.push(`/matches/${match.id}`);
+      // Match is created as not_started (planned). Return to the plan instead of
+      // opening the live match — the user starts it later, on site.
+      router.push(tournamentId ? `/schedule/${tournamentId}` : "/schedule");
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Nastala chyba");
       setLoading(false);
@@ -246,7 +270,7 @@ export function NewMatchForm({
           <div className="relative">
             <select
               value={tournamentId ?? ""}
-              onChange={(e) => setTournamentId(e.target.value || null)}
+              onChange={(e) => handleTournamentChange(e.target.value || null)}
               className="w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 pr-10 text-white focus:border-red-500 focus:outline-none"
             >
               <option value="">Bez turnaje</option>
@@ -263,6 +287,15 @@ export function NewMatchForm({
           </div>
         </div>
       )}
+
+      {/* Match date */}
+      <Input
+        id="matchDate"
+        label="Datum a čas zápasu"
+        type="datetime-local"
+        value={matchDate}
+        onChange={(e) => setMatchDate(e.target.value)}
+      />
 
       {/* Home team */}
       <div className="relative">
@@ -499,7 +532,7 @@ export function NewMatchForm({
 
       {/* Submit */}
       <Button type="submit" disabled={loading} fullWidth size="lg">
-        {loading ? "Vytvářím zápas..." : "Zahájit zápas"}
+        {loading ? "Vytvářím zápas..." : "Vytvořit zápas"}
       </Button>
     </form>
   );

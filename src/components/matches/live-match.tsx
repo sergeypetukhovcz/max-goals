@@ -324,9 +324,19 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
         )}
 
         {match.status === "not_started" && (
-          <Button fullWidth size="lg" onClick={handleStartMatch}>
-            Zahájit zápas
-          </Button>
+          <>
+            <Button fullWidth size="lg" onClick={handleStartMatch}>
+              Zahájit zápas
+            </Button>
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={() => router.push(`/matches/${match.id}/detail`)}
+              className="!text-zinc-400"
+            >
+              Upravit zápas (datum, týmy…)
+            </Button>
+          </>
         )}
 
         {isActive && (
