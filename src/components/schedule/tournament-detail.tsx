@@ -57,6 +57,7 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
   const supabase = createClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dateRange = formatDateRange(tournament.start_date, tournament.end_date);
@@ -68,6 +69,29 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
     if (!src) return "—";
     const num = src.jersey_number !== null ? ` #${src.jersey_number}` : "";
     return `${src.first_name} ${src.last_name}${num}`;
+  }
+
+  async function handleToggleFinished() {
+    const next = !tournament.is_finished;
+    setFinishing(true);
+    setError(null);
+    const { error } = await supabase
+      .from("tournaments")
+      .update({ is_finished: next })
+      .eq("id", tournament.id);
+    if (error) {
+      setError(next ? "Nepodařilo se ukončit turnaj" : "Nepodařilo se znovu otevřít turnaj");
+      setFinishing(false);
+      return;
+    }
+    // Finished tournaments leave the planner; go back to the list. Reopening
+    // stays on the detail so the user sees it is active again.
+    if (next) {
+      router.push("/schedule");
+    } else {
+      router.refresh();
+      setFinishing(false);
+    }
   }
 
   async function handleDelete() {
@@ -95,6 +119,11 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
           </svg>
         </Link>
         <h2 className="flex-1 truncate text-xl font-bold text-white">{tournament.name}</h2>
+        {tournament.is_finished && (
+          <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-400">
+            Ukončeno
+          </span>
+        )}
         <button onClick={() => setEditOpen(true)} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white" title="Upravit turnaj">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -178,8 +207,20 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
         )}
       </div>
 
-      {/* Delete */}
-      <div className="border-t border-zinc-800 pt-4">
+      {/* Finish / reopen + delete */}
+      <div className="space-y-3 border-t border-zinc-800 pt-4">
+        {tournament.is_finished ? (
+          <Button variant="secondary" fullWidth onClick={handleToggleFinished} disabled={finishing}>
+            {finishing ? "Otevírám…" : "Znovu otevřít turnaj"}
+          </Button>
+        ) : (
+          <Button variant="secondary" fullWidth onClick={handleToggleFinished} disabled={finishing}>
+            {finishing ? "Ukončuji…" : "Ukončit turnaj"}
+          </Button>
+        )}
+        <p className="text-center text-xs text-zinc-500">
+          Ukončený turnaj zmizí z plánovače. Zápasy a statistiky zůstanou zachované.
+        </p>
         <Button variant="danger" fullWidth onClick={handleDelete} disabled={deleting}>
           {deleting ? "Mažu turnaj…" : "Smazat turnaj"}
         </Button>

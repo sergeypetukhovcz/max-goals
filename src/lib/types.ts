@@ -47,6 +47,7 @@ export type Tournament = {
   end_date: string | null;
   season: string;
   notes: string | null;
+  is_finished: boolean;
   created_at: string;
 };
 

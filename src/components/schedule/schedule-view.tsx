@@ -41,6 +41,38 @@ function formatDateRange(start: string | null, end: string | null): string | nul
 
 export function ScheduleView({ tournaments, standaloneMatches, players, teammates }: ScheduleViewProps) {
   const [showForm, setShowForm] = useState(false);
+  const [showFinished, setShowFinished] = useState(false);
+
+  const activeTournaments = tournaments.filter((t) => !t.is_finished);
+  const finishedTournaments = tournaments.filter((t) => t.is_finished);
+
+  function tournamentCard(t: Tournament) {
+    const dateRange = formatDateRange(t.start_date, t.end_date);
+    return (
+      <Link
+        key={t.id}
+        href={`/schedule/${t.id}`}
+        className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-white">{t.name}</p>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            {t.location && <span className="truncate">{t.location}</span>}
+            {t.location && dateRange && <span>·</span>}
+            {dateRange && <span>{dateRange}</span>}
+          </div>
+        </div>
+        <svg className="h-4 w-4 shrink-0 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -59,39 +91,35 @@ export function ScheduleView({ tournaments, standaloneMatches, players, teammate
           <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">Turnaje</h3>
           <Button size="sm" onClick={() => setShowForm(true)}>+ Nový turnaj</Button>
         </div>
-        {tournaments.length === 0 ? (
+        {activeTournaments.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-800 py-6 text-center text-sm text-zinc-500">
-            Zatím žádné turnaje
+            Žádné aktivní turnaje
           </p>
         ) : (
           <div className="space-y-2">
-            {tournaments.map((t) => {
-              const dateRange = formatDateRange(t.start_date, t.end_date);
-              return (
-                <Link
-                  key={t.id}
-                  href={`/schedule/${t.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-white">{t.name}</p>
-                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                      {t.location && <span className="truncate">{t.location}</span>}
-                      {t.location && dateRange && <span>·</span>}
-                      {dateRange && <span>{dateRange}</span>}
-                    </div>
-                  </div>
-                  <svg className="h-4 w-4 shrink-0 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              );
-            })}
+            {activeTournaments.map((t) => tournamentCard(t))}
+          </div>
+        )}
+
+        {finishedTournaments.length > 0 && (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowFinished((v) => !v)}
+              className="flex w-full items-center justify-between rounded-lg px-1 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-300"
+            >
+              <span>Ukončené turnaje ({finishedTournaments.length})</span>
+              <svg
+                className={`h-4 w-4 transition-transform ${showFinished ? "rotate-180" : ""}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showFinished && (
+              <div className="space-y-2 opacity-70">
+                {finishedTournaments.map((t) => tournamentCard(t))}
+              </div>
+            )}
           </div>
         )}
       </div>
