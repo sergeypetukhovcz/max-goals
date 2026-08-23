@@ -29,9 +29,27 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Guard the auth lookup with a timeout and fail open: if Supabase is briefly
+  // slow/unreachable, we must NOT hang the whole request until Vercel kills the
+  // middleware with a 504. Protected routes are still guarded server-side by the
+  // (protected) layout, which re-checks the user — so letting a request through
+  // here is safe, and only skips the early login/redirect optimization.
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] | null = null;
+  let authFailed = false;
+  try {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("auth timeout")), 3000)
+    );
+    const result = await Promise.race([supabase.auth.getUser(), timeout]);
+    user = result.data.user;
+  } catch {
+    authFailed = true;
+  }
+
+  // Could not determine the session in time — proceed without redirecting.
+  if (authFailed) {
+    return supabaseResponse;
+  }
 
   const isAuthPage =
     request.nextUrl.pathname === "/login" ||
