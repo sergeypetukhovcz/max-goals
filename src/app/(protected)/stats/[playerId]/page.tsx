@@ -36,6 +36,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     season: string;
     tournament_id: string | null;
     tournament_name: string | null;
+    tournament_start_date: string | null;
   }> = [];
   let allGoals: Array<{
     match_id: string;
@@ -48,7 +49,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     matchIds.length > 0
       ? supabase
           .from("matches")
-          .select("id, home_team_name, away_team_name, home_team_id, away_team_id, created_at, status, season, tournament_id, tournament:tournaments(name)")
+          .select("id, home_team_name, away_team_name, home_team_id, away_team_id, created_at, status, season, tournament_id, tournament:tournaments(name, start_date)")
           .in("id", matchIds)
           .order("created_at", { ascending: false })
       : { data: [] },
@@ -72,6 +73,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     season: m.season as string,
     tournament_id: (m.tournament_id as string | null) ?? null,
     tournament_name: (m.tournament as { name: string } | null)?.name ?? null,
+    tournament_start_date: (m.tournament as { start_date: string | null } | null)?.start_date ?? null,
   }));
   allGoals = goalsResult.data ?? [];
   const teams = teamsResult.data ?? [];

@@ -15,6 +15,7 @@ interface MatchData {
   season: string;
   tournament_id: string | null;
   tournament_name: string | null;
+  tournament_start_date: string | null;
 }
 
 interface GoalData {
@@ -37,6 +38,13 @@ interface PlayerStatsProps {
   playerSideMap: Record<string, boolean | null>;
 }
 
+function tournamentLabel(name: string | null, startDate: string | null): string {
+  const base = name ?? "Turnaj";
+  if (!startDate) return base;
+  const date = new Date(startDate).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
+  return `${base} — ${date}`;
+}
+
 export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap }: PlayerStatsProps) {
   const seasons = [...new Set(matches.map((m) => m.season).filter(Boolean))].sort().reverse();
   const [selectedSeason, setSelectedSeason] = useState<string | null>(
@@ -46,9 +54,12 @@ export function PlayerStats({ matches, allGoals, playerId, teams, playerSideMap 
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>("");
 
   // Distinct tournaments the player took part in (for the filter dropdown).
+  // Include the date — the same city can host several tournaments per season.
   const tournamentOptions = [
     ...new Map(
-      matches.filter((m) => m.tournament_id).map((m) => [m.tournament_id as string, m.tournament_name ?? "Turnaj"])
+      matches
+        .filter((m) => m.tournament_id)
+        .map((m) => [m.tournament_id as string, tournamentLabel(m.tournament_name, m.tournament_start_date)])
     ).entries(),
   ];
 
