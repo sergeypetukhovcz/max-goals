@@ -1,24 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { ActiveMatchesCarousel } from "@/components/dashboard/active-matches-carousel";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Surface a match that is not finished so the user can jump back into it.
-  const { data: activeMatch } = await supabase
+  // Surface all not-finished matches so the user can swipe through them.
+  const { data: activeMatches } = await supabase
     .from("matches")
     .select("id, home_team_name, away_team_name, status, current_period, periods_count")
     .in("status", ["not_started", "in_progress", "paused"])
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
 
-  const statusLabel: Record<string, string> = {
-    not_started: "Nezahájený",
-    in_progress: "Probíhá",
-    paused: "Pauza",
-  };
+  // Live/paused matches come first, then scheduled ones (already newest-first from the query).
+  const statusRank: Record<string, number> = { in_progress: 0, paused: 1, not_started: 2 };
+  const matches = [...(activeMatches ?? [])].sort(
+    (a, b) => (statusRank[a.status] ?? 3) - (statusRank[b.status] ?? 3),
+  );
 
   return (
     <div className="space-y-6">
@@ -27,27 +27,8 @@ export default async function DashboardPage() {
         <p className="text-zinc-400">{user?.email}</p>
       </div>
 
-      {/* Resume active match */}
-      {activeMatch && (
-        <Link
-          href={`/matches/${activeMatch.id}`}
-          className="block rounded-xl border border-red-600/50 bg-red-600/10 p-4 transition-colors hover:border-red-500"
-        >
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-red-400">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-              </span>
-              {statusLabel[activeMatch.status] ?? "Rozehraný"} · Třetina {activeMatch.current_period}/{activeMatch.periods_count}
-            </span>
-            <span className="text-xs text-red-400">Pokračovat →</span>
-          </div>
-          <p className="mt-2 font-semibold text-white">
-            {activeMatch.home_team_name} <span className="text-zinc-500">vs</span> {activeMatch.away_team_name}
-          </p>
-        </Link>
-      )}
+      {/* Resume / browse active matches */}
+      <ActiveMatchesCarousel matches={matches} />
 
       {/* New Match CTA */}
       <Link
