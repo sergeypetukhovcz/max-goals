@@ -16,7 +16,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       .eq("tournament_id", id),
     supabase
       .from("matches")
-      .select("id, home_team_name, away_team_name, status, current_period, periods_count, created_at, goals(is_home_goal)")
+      .select("id, home_team_name, away_team_name, status, current_period, periods_count, created_at, goals(is_home_goal, scorer_player_id, scorer_teammate_id, scorer_name), match_players(is_home, is_my_player)")
       .eq("tournament_id", id)
       .order("created_at", { ascending: true }),
     supabase.from("players").select("*").order("last_name"),

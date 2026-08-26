@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { TournamentForm } from "./tournament-form";
 import type { TeammateWithTeam } from "./schedule-view";
+import { ScorerTable } from "@/components/stats/scorer-table";
+import { deriveOurSide, ourGoals, scorerTotals, type ScorerGoal } from "@/lib/scorer-stats";
 
 interface NominationRow {
   id: string;
@@ -27,7 +29,8 @@ interface TournamentMatch {
   current_period: number;
   periods_count: number;
   created_at: string;
-  goals: { is_home_goal: boolean }[];
+  goals: ScorerGoal[];
+  match_players: { is_home: boolean | null; is_my_player: boolean }[];
 }
 
 interface TournamentDetailProps {
@@ -63,6 +66,11 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
   const dateRange = formatDateRange(tournament.start_date, tournament.end_date);
   const initialPlayerIds = nomination.filter((n) => n.player_id).map((n) => n.player_id as string);
   const initialTeammateIds = nomination.filter((n) => n.teammate_id).map((n) => n.teammate_id as string);
+
+  // Součet gólů střelců napříč všemi zápasy turnaje (jen náš tým).
+  const tournamentScorers = scorerTotals(
+    matches.flatMap((m) => ourGoals(m.goals, deriveOurSide(m.match_players)))
+  );
 
   function nominationName(n: NominationRow): string {
     const src = n.player ?? n.teammate;
@@ -206,6 +214,9 @@ export function TournamentDetail({ tournament, nomination, matches, players, tea
           </div>
         )}
       </div>
+
+      {/* Scorer summary across the tournament */}
+      <ScorerTable rows={tournamentScorers} title="Střelci turnaje" />
 
       {/* Finish / reopen + delete */}
       <div className="space-y-3 border-t border-zinc-800 pt-4">

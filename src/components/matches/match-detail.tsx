@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { Match, Goal, MatchPlayer, Player, Teammate, Team } from "@/lib/types";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { GoalModal, type GoalFormData } from "@/components/matches/goal-modal";
 import { EditMatchInfoModal } from "@/components/matches/edit-match-info-modal";
+import { ScorerTable } from "@/components/stats/scorer-table";
+import { deriveOurSide, ourGoals, scorerTotals } from "@/lib/scorer-stats";
 
 interface MatchDetailProps {
   match: Match;
@@ -43,6 +45,12 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
 
   const homeGoals = goals.filter((g) => g.is_home_goal);
   const awayGoals = goals.filter((g) => !g.is_home_goal);
+
+  // Na které straně hrál náš tým (pro přehled střelců i barvu skóre třetin).
+  const ourSide = useMemo(() => deriveOurSide(matchPlayers), [matchPlayers]);
+
+  // Přehled střelců našeho týmu (přepočítá se při každé úpravě gólů).
+  const scorerRows = useMemo(() => scorerTotals(ourGoals(goals, ourSide)), [goals, ourSide]);
 
   const goalsByPeriod: Record<number, Goal[]> = {};
   for (let i = 1; i <= match.periods_count; i++) {
@@ -194,11 +202,31 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
         )}
       </div>
 
+      {/* Scorer summary */}
+      <ScorerTable rows={scorerRows} />
+
       {/* Goals by period */}
-      {Object.entries(goalsByPeriod).map(([period, periodGoals]) => (
+      {Object.entries(goalsByPeriod).map(([period, periodGoals]) => {
+        const pHome = periodGoals.filter((g) => g.is_home_goal).length;
+        const pAway = periodGoals.length - pHome;
+        // Barva dílčího skóre podle výsledku třetiny z pohledu našeho týmu.
+        let periodScoreClass = "text-zinc-400";
+        if (ourSide !== null && periodGoals.length > 0) {
+          const ours = ourSide ? pHome : pAway;
+          const theirs = ourSide ? pAway : pHome;
+          periodScoreClass = ours > theirs ? "text-green-400" : ours < theirs ? "text-red-400" : "text-zinc-400";
+        }
+        return (
         <div key={period}>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-zinc-300">{period}. třetina</h3>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-sm font-semibold text-zinc-300">{period}. třetina</h3>
+              {periodGoals.length > 0 && (
+                <span className={`font-mono text-xs font-bold tabular-nums ${periodScoreClass}`}>
+                  {pHome}:{pAway}
+                </span>
+              )}
+            </div>
             <div className="flex gap-1">
               <button
                 onClick={() => openAddGoal(parseInt(period), true)}
@@ -257,7 +285,8 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {/* Delete match button */}
       <div className="pt-4 border-t border-zinc-800">
