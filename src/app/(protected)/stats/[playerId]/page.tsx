@@ -45,7 +45,33 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     assist_player_id: string | null;
   }> = [];
 
-  const [matchesResult, goalsResult, teamsResult] = await Promise.all([
+  // Góly všech zápasů hráče se načítají stránkovaně: jednorázový .in() dotaz
+  // naráží na řádkový limit PostgRESTu (výchozí 1000), takže se u hráčů s více
+  // zápasy tiše ořízne a skóre posledních zápasů vychází menší než ve skutečnosti.
+  const goalsPromise = (async () => {
+    if (matchIds.length === 0) return [];
+    const PAGE = 1000;
+    const rows: Array<{
+      match_id: string;
+      is_home_goal: boolean;
+      scorer_player_id: string | null;
+      assist_player_id: string | null;
+    }> = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data } = await supabase
+        .from("goals")
+        .select("match_id, is_home_goal, scorer_player_id, assist_player_id")
+        .in("match_id", matchIds)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (!data || data.length === 0) break;
+      rows.push(...data);
+      if (data.length < PAGE) break;
+    }
+    return rows;
+  })();
+
+  const [matchesResult, goalsData, teamsResult] = await Promise.all([
     matchIds.length > 0
       ? supabase
           .from("matches")
@@ -53,12 +79,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
           .in("id", matchIds)
           .order("created_at", { ascending: false })
       : { data: [] },
-    matchIds.length > 0
-      ? supabase
-          .from("goals")
-          .select("match_id, is_home_goal, scorer_player_id, assist_player_id")
-          .in("match_id", matchIds)
-      : { data: [] },
+    goalsPromise,
     supabase.from("teams").select("id, name").order("name"),
   ]);
 
@@ -75,7 +96,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ pl
     tournament_name: (m.tournament as { name: string } | null)?.name ?? null,
     tournament_start_date: (m.tournament as { start_date: string | null } | null)?.start_date ?? null,
   }));
-  allGoals = goalsResult.data ?? [];
+  allGoals = goalsData;
   const teams = teamsResult.data ?? [];
 
   return (
