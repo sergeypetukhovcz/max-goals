@@ -7,11 +7,15 @@ import type { Match, Goal, MatchPlayer, Player, Teammate, Team } from "@/lib/typ
 import { Button } from "@/components/ui/button";
 import { GoalModal, type GoalFormData } from "./goal-modal";
 import { ActivityLog } from "./activity-log";
+import { MatchNomination } from "./match-nomination";
+import type { TeammateOption } from "./nomination-picker";
 
 interface LiveMatchProps {
   match: Match;
   goals: Goal[];
   matchPlayers: (MatchPlayer & { player?: Player; teammate?: Teammate })[];
+  players: Player[];
+  teammates: TeammateOption[];
   homeTeam?: Team | null;
   awayTeam?: Team | null;
 }
@@ -35,7 +39,7 @@ function elapsedFromMatch(m: Match): number {
   return baseMs;
 }
 
-export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlayers, homeTeam, awayTeam }: LiveMatchProps) {
+export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlayers, players, teammates, homeTeam, awayTeam }: LiveMatchProps) {
   const router = useRouter();
   const supabase = createClient();
   const workerRef = useRef<Worker | null>(null);
@@ -386,6 +390,17 @@ export function LiveMatch({ match: initialMatch, goals: initialGoals, matchPlaye
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Nomination */}
+      <div className="px-4">
+        <MatchNomination
+          match={match}
+          matchPlayers={matchPlayers}
+          goals={goals}
+          players={players}
+          teammates={teammates}
+        />
       </div>
 
       {/* Activity log */}

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { GoalModal, type GoalFormData } from "@/components/matches/goal-modal";
 import { EditMatchInfoModal } from "@/components/matches/edit-match-info-modal";
+import { MatchNomination } from "@/components/matches/match-nomination";
+import type { TeammateOption } from "@/components/matches/nomination-picker";
 import { ScorerTable } from "@/components/stats/scorer-table";
 import { deriveOurSide, ourGoals, scorerTotals } from "@/lib/scorer-stats";
 
@@ -15,6 +17,8 @@ interface MatchDetailProps {
   match: Match;
   goals: Goal[];
   matchPlayers: (MatchPlayer & { player?: Player; teammate?: Teammate })[];
+  players: Player[];
+  teammates: TeammateOption[];
   teams: Team[];
 }
 
@@ -30,7 +34,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPlayers, teams }: MatchDetailProps) {
+export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPlayers, players, teammates, teams }: MatchDetailProps) {
   const [match, setMatch] = useState<Match>(initialMatch);
   const [goals, setGoals] = useState<Goal[]>(initialGoals);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
@@ -201,6 +205,15 @@ export function MatchDetail({ match: initialMatch, goals: initialGoals, matchPla
           <p className="mt-2 text-sm text-zinc-300 italic">{match.notes}</p>
         )}
       </div>
+
+      {/* Nomination */}
+      <MatchNomination
+        match={match}
+        matchPlayers={matchPlayers}
+        goals={goals}
+        players={players}
+        teammates={teammates}
+      />
 
       {/* Scorer summary */}
       <ScorerTable rows={scorerRows} />

@@ -8,6 +8,7 @@ import { ensureProfile } from "@/lib/ensure-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
+import { NominationPicker } from "./nomination-picker";
 
 interface NewMatchFormProps {
   teams: Team[];
@@ -412,10 +413,10 @@ export function NewMatchForm({
         placeholder="2025-2026"
       />
 
-      {/* My players */}
+      {/* My players side */}
       <div>
-        <label className="mb-2 block text-sm text-zinc-400">Moji hráči v zápase *</label>
-        <div className="flex gap-2 mb-3">
+        <label className="mb-2 block text-sm text-zinc-400">Za koho hrají moji hráči</label>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setMyPlayersIsHome(true)}
@@ -439,87 +440,18 @@ export function NewMatchForm({
             Hrají za hosty
           </button>
         </div>
-        {players.length === 0 ? (
-          <p className="text-sm text-zinc-500">Nejdříve přidej hráče v sekci Hráči</p>
-        ) : (
-          <div className="space-y-2">
-            {players.map((player) => (
-              <label
-                key={player.id}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                  selectedPlayerIds.includes(player.id)
-                    ? "border-red-600 bg-red-600/10"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedPlayerIds.includes(player.id)}
-                  onChange={() => togglePlayer(player.id)}
-                  className="sr-only"
-                />
-                <div className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
-                  selectedPlayerIds.includes(player.id) ? "border-red-600 bg-red-600" : "border-zinc-600"
-                }`}>
-                  {selectedPlayerIds.includes(player.id) && (
-                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-medium text-white">
-                  {player.first_name} {player.last_name}
-                </span>
-                {player.jersey_number !== null && (
-                  <span className="text-xs text-zinc-400">#{player.jersey_number}</span>
-                )}
-              </label>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Team roster + nominated teammates */}
-      {visibleTeammates.length > 0 && (
-        <div>
-          <label className="mb-2 block text-sm text-zinc-400">Hráči ze soupisky</label>
-          <div className="space-y-2">
-            {visibleTeammates
-              .map((mate) => (
-                <label
-                  key={mate.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                    selectedTeammateIds.includes(mate.id)
-                      ? "border-blue-600 bg-blue-600/10"
-                      : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTeammateIds.includes(mate.id)}
-                    onChange={() => toggleTeammate(mate.id)}
-                    className="sr-only"
-                  />
-                  <div className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
-                    selectedTeammateIds.includes(mate.id) ? "border-blue-600 bg-blue-600" : "border-zinc-600"
-                  }`}>
-                    {selectedTeammateIds.includes(mate.id) && (
-                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-sm text-white">
-                    {mate.first_name} {mate.last_name}
-                  </span>
-                  {mate.jersey_number !== null && (
-                    <span className="text-xs text-zinc-400">#{mate.jersey_number}</span>
-                  )}
-                </label>
-              ))}
-          </div>
-        </div>
-      )}
+      {/* Nomination */}
+      <NominationPicker
+        players={players}
+        teammates={visibleTeammates}
+        selectedPlayerIds={selectedPlayerIds}
+        selectedTeammateIds={selectedTeammateIds}
+        onTogglePlayer={togglePlayer}
+        onToggleTeammate={toggleTeammate}
+        playersLabel="Moji hráči v zápase *"
+      />
 
       {/* Notes */}
       <Input

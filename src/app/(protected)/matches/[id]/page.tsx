@@ -14,9 +14,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   if (!match) redirect("/dashboard");
 
-  const [goalsRes, matchPlayersRes, homeTeamRes, awayTeamRes] = await Promise.all([
+  const [goalsRes, matchPlayersRes, playersRes, teammatesRes, homeTeamRes, awayTeamRes] = await Promise.all([
     supabase.from("goals").select("*").eq("match_id", id).order("created_at"),
     supabase.from("match_players").select("*, player:players(*), teammate:teammates(*)").eq("match_id", id),
+    supabase.from("players").select("*").order("first_name"),
+    supabase.from("teammates").select("*, team:teams(name)").order("first_name"),
     match.home_team_id ? supabase.from("teams").select("*").eq("id", match.home_team_id).single() : { data: null },
     match.away_team_id ? supabase.from("teams").select("*").eq("id", match.away_team_id).single() : { data: null },
   ]);
@@ -26,6 +28,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       match={match}
       goals={goalsRes.data ?? []}
       matchPlayers={matchPlayersRes.data ?? []}
+      players={playersRes.data ?? []}
+      teammates={teammatesRes.data ?? []}
       homeTeam={homeTeamRes.data}
       awayTeam={awayTeamRes.data}
     />
