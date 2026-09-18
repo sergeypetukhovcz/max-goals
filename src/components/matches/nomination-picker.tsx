@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Player, Teammate } from "@/lib/types";
 
 export type TeammateOption = Teammate & { team?: { name: string } | null };
@@ -84,6 +85,21 @@ function CheckRow({
   );
 }
 
+// Hledání bez ohledu na diakritiku a velikost písmen ("plasil" najde "Plášil").
+function normalize(text: string) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function matchesQuery(
+  person: { first_name: string; last_name: string; jersey_number: number | null },
+  q: string
+) {
+  if (!q) return true;
+  const name = normalize(`${person.first_name} ${person.last_name}`);
+  const reversed = normalize(`${person.last_name} ${person.first_name}`);
+  return name.includes(q) || reversed.includes(q) || String(person.jersey_number ?? "") === q;
+}
+
 export function NominationPicker({
   players,
   teammates,
@@ -98,41 +114,89 @@ export function NominationPicker({
   teammatesLabel = "Hráči ze soupisky",
   noPlayersHint = "Nejdříve přidej hráče v sekci Hráči",
 }: NominationPickerProps) {
+  const [search, setSearch] = useState("");
+  const q = normalize(search.trim());
+  const filteredPlayers = players.filter((p) => matchesQuery(p, q));
+  const filteredTeammates = teammates.filter((t) => matchesQuery(t, q));
+  const showSearch = players.length + teammates.length > 0;
+  const noResults = !!q && filteredPlayers.length === 0 && filteredTeammates.length === 0;
+
   // Skupiny spoluhráčů podle týmu; bez seskupení jeden bezejmenný blok.
   const groups = groupTeammatesByTeam
     ? Object.entries(
-        teammates.reduce<Record<string, TeammateOption[]>>((acc, tm) => {
+        filteredTeammates.reduce<Record<string, TeammateOption[]>>((acc, tm) => {
           const key = tm.team?.name ?? "Bez týmu";
           (acc[key] ??= []).push(tm);
           return acc;
         }, {})
       )
-    : ([["", teammates]] as [string, TeammateOption[]][]);
+    : ([["", filteredTeammates]] as [string, TeammateOption[]][]);
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="mb-2 block text-sm text-zinc-400">{playersLabel}</label>
-        {players.length === 0 ? (
-          <p className="text-sm text-zinc-500">{noPlayersHint}</p>
-        ) : (
-          <div className="space-y-2">
-            {players.map((player) => (
-              <CheckRow
-                key={player.id}
-                checked={selectedPlayerIds.includes(player.id)}
-                locked={lockedPlayerIds.includes(player.id)}
-                accent="red"
-                onToggle={() => onTogglePlayer(player.id)}
-                name={`${player.first_name} ${player.last_name}`}
-                jerseyNumber={player.jersey_number}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {showSearch && (
+        <div className="relative">
+          <svg
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            // Enter v hledání nesmí odeslat celý formulář zápasu.
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
+            placeholder="Hledat hráče podle jména nebo čísla…"
+            className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 pl-10 pr-10 text-sm text-white placeholder-zinc-500 focus:border-red-500 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+              aria-label="Vymazat hledání"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
-      {teammates.length > 0 && (
+      {noResults && <p className="py-2 text-center text-sm text-zinc-500">Žádný hráč neodpovídá „{search.trim()}“</p>}
+
+      {(!q || filteredPlayers.length > 0) && (
+        <div>
+          <label className="mb-2 block text-sm text-zinc-400">{playersLabel}</label>
+          {players.length === 0 ? (
+            <p className="text-sm text-zinc-500">{noPlayersHint}</p>
+          ) : (
+            <div className="space-y-2">
+              {filteredPlayers.map((player) => (
+                <CheckRow
+                  key={player.id}
+                  checked={selectedPlayerIds.includes(player.id)}
+                  locked={lockedPlayerIds.includes(player.id)}
+                  accent="red"
+                  onToggle={() => onTogglePlayer(player.id)}
+                  name={`${player.first_name} ${player.last_name}`}
+                  jerseyNumber={player.jersey_number}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {filteredTeammates.length > 0 && (
         <div>
           <label className="mb-2 block text-sm text-zinc-400">{teammatesLabel}</label>
           <div className="space-y-3">
