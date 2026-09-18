@@ -23,6 +23,7 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
   const [jerseyNumber, setJerseyNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingMate, setEditingMate] = useState<Teammate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -50,24 +51,47 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
     router.refresh();
   }
 
-  async function addManualPlayer(e: React.FormEvent) {
+  function openAddManual() {
+    setEditingMate(null);
+    setFirstName("");
+    setLastName("");
+    setJerseyNumber("");
+    setShowAddManual(true);
+  }
+
+  function openEdit(mate: Teammate) {
+    setEditingMate(mate);
+    setFirstName(mate.first_name);
+    setLastName(mate.last_name);
+    setJerseyNumber(mate.jersey_number !== null ? String(mate.jersey_number) : "");
+    setShowAddManual(true);
+  }
+
+  function closeManual() {
+    setShowAddManual(false);
+    setEditingMate(null);
+  }
+
+  async function saveManualPlayer(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from("teammates").insert({
-      team_id: teamId,
+    const values = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       jersey_number: jerseyNumber ? parseInt(jerseyNumber) : null,
-    });
+    };
+    const { error } = editingMate
+      ? await supabase.from("teammates").update(values).eq("id", editingMate.id)
+      : await supabase.from("teammates").insert({ team_id: teamId, ...values });
     setLoading(false);
     if (error) {
-      setError("Nepodařilo se přidat spoluhráče");
+      setError(editingMate ? "Nepodařilo se uložit změny" : "Nepodařilo se přidat spoluhráče");
       return;
     }
     setFirstName("");
     setLastName("");
     setJerseyNumber("");
-    setShowAddManual(false);
+    closeManual();
     router.refresh();
   }
 
@@ -95,7 +119,7 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
               + Můj hráč
             </Button>
           )}
-          <Button size="sm" variant="secondary" onClick={() => setShowAddManual(true)}>
+          <Button size="sm" variant="secondary" onClick={openAddManual}>
             + Spoluhráč
           </Button>
         </div>
@@ -110,7 +134,11 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
               key={mate.id}
               className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5"
             >
-              <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => openEdit(mate)}
+                className="flex-1 min-w-0 text-left"
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-white truncate">
                     {mate.first_name} {mate.last_name}
@@ -126,9 +154,19 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
+              <button
+                onClick={() => openEdit(mate)}
+                className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                aria-label="Upravit"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                </svg>
+              </button>
               <button
                 onClick={() => removeFromRoster(mate.id)}
+                aria-label="Odebrat"
                 disabled={deletingId === mate.id}
                 className="rounded-lg p-1.5 text-zinc-500 hover:bg-red-600/20 hover:text-red-400 disabled:opacity-50"
               >
@@ -171,9 +209,9 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
         )}
       </Modal>
 
-      {/* Add manual player modal */}
-      <Modal open={showAddManual} onClose={() => setShowAddManual(false)} title="Přidat spoluhráče">
-        <form onSubmit={addManualPlayer} className="space-y-4">
+      {/* Add / edit teammate modal */}
+      <Modal open={showAddManual} onClose={closeManual} title={editingMate ? "Upravit hráče" : "Přidat spoluhráče"}>
+        <form onSubmit={saveManualPlayer} className="space-y-4">
           <Input
             id="mateFirstName"
             label="Jméno *"
@@ -201,11 +239,11 @@ export function RosterManager({ teamId, roster, availablePlayers }: RosterManage
             max="99"
           />
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAddManual(false)} fullWidth>
+            <Button type="button" variant="secondary" onClick={closeManual} fullWidth>
               Zrušit
             </Button>
             <Button type="submit" disabled={loading} fullWidth>
-              {loading ? "Ukládám..." : "Přidat"}
+              {loading ? "Ukládám..." : editingMate ? "Uložit" : "Přidat"}
             </Button>
           </div>
         </form>
