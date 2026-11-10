@@ -1,6 +1,82 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ScorerTable } from "@/components/stats/scorer-table";
+import { deriveOurSide, ourGoals, scorerTotals, UNKNOWN_SCORER, type ScorerGoal } from "@/lib/scorer-stats";
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Načte všechny řádky tabulky stránkovaně — jednorázový dotaz naráží na
+ * řádkový limit PostgRESTu (výchozí 1000) a tiše by se ořízl.
+ */
+async function fetchAllRows<T>(supabase: Supabase, table: string, columns: string): Promise<T[]> {
+  const PAGE = 1000;
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await supabase
+      .from(table)
+      .select(columns)
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    rows.push(...(data as T[]));
+    if (data.length < PAGE) break;
+  }
+  return rows;
+}
+
+/**
+ * Součet gólů hráčů našeho týmu napříč všemi zápasy. Započítají se jen góly
+ * s vyplněným střelcem (střelce se začalo zapisovat až nedávno), proto vracíme
+ * i počet zápasů, ze kterých statistika vychází.
+ */
+async function loadTeamScorers(supabase: Supabase) {
+  const [goals, roster, { count: playedCount }] = await Promise.all([
+    fetchAllRows<ScorerGoal & { match_id: string }>(
+      supabase,
+      "goals",
+      "id, match_id, is_home_goal, scorer_player_id, scorer_teammate_id, scorer_name"
+    ),
+    fetchAllRows<{ match_id: string; is_home: boolean | null; is_my_player: boolean }>(
+      supabase,
+      "match_players",
+      "id, match_id, is_home, is_my_player"
+    ),
+    supabase.from("matches").select("id", { count: "exact", head: true }).neq("status", "not_started"),
+  ]);
+
+  const rosterByMatch = new Map<string, typeof roster>();
+  for (const r of roster) {
+    const list = rosterByMatch.get(r.match_id);
+    if (list) list.push(r);
+    else rosterByMatch.set(r.match_id, [r]);
+  }
+  const goalsByMatch = new Map<string, typeof goals>();
+  for (const g of goals) {
+    const list = goalsByMatch.get(g.match_id);
+    if (list) list.push(g);
+    else goalsByMatch.set(g.match_id, [g]);
+  }
+
+  const counted: ScorerGoal[] = [];
+  let matchesWithScorers = 0;
+  for (const [matchId, matchGoals] of goalsByMatch) {
+    const ours = ourGoals(matchGoals, deriveOurSide(rosterByMatch.get(matchId) ?? [])).filter(
+      (g) => g.scorer_player_id || g.scorer_teammate_id || g.scorer_name
+    );
+    if (ours.length > 0) {
+      matchesWithScorers += 1;
+      counted.push(...ours);
+    }
+  }
+
+  return {
+    rows: scorerTotals(counted).filter((r) => r.name !== UNKNOWN_SCORER),
+    matchesWithScorers,
+    playedCount: playedCount ?? 0,
+  };
+}
 
 export default async function StatsPage() {
   const supabase = await createClient();
@@ -30,9 +106,10 @@ export default async function StatsPage() {
   // Get quick stats for all players in 2 queries
   const playerIds = players.map((p) => p.id);
 
-  const [{ data: matchPlayerRows }, { data: goalRows }] = await Promise.all([
+  const [{ data: matchPlayerRows }, { data: goalRows }, teamScorers] = await Promise.all([
     supabase.from("match_players").select("player_id").in("player_id", playerIds),
     supabase.from("goals").select("scorer_player_id").in("scorer_player_id", playerIds),
+    loadTeamScorers(supabase),
   ]);
 
   const matchCountMap = new Map<string, number>();
@@ -95,6 +172,18 @@ export default async function StatsPage() {
           </Link>
         ))}
       </div>
+
+      {teamScorers.rows.length > 0 && (
+        <div className="mt-8">
+          <ScorerTable rows={teamScorers.rows} title="Střelci týmu" />
+          <p className="mt-2 text-xs text-zinc-500">
+            Statistika z {teamScorers.matchesWithScorers}{" "}
+            {teamScorers.matchesWithScorers === 1 ? "zápasu" : "zápasů"} s vyplněnými střelci
+            {teamScorers.playedCount > 0 && ` (z celkem ${teamScorers.playedCount} odehraných)`}.
+            Starší zápasy střelce zapsané nemají, proto čísla nejsou úplná.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
