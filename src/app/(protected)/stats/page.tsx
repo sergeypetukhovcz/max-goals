@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ScorerTable } from "@/components/stats/scorer-table";
-import { deriveOurSide, ourGoals, scorerTotals, UNKNOWN_SCORER, type ScorerGoal } from "@/lib/scorer-stats";
+import { TeamScorers, type TeamScorerMatch } from "@/components/stats/team-scorers";
+import { deriveOurSide, ourGoals, type ScorerGoal } from "@/lib/scorer-stats";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -27,12 +27,13 @@ async function fetchAllRows<T>(supabase: Supabase, table: string, columns: strin
 }
 
 /**
- * Součet gólů hráčů našeho týmu napříč všemi zápasy. Započítají se jen góly
- * s vyplněným střelcem (střelce se začalo zapisovat až nedávno), proto vracíme
- * i počet zápasů, ze kterých statistika vychází.
+ * Podklady pro tabulku "Střelci týmu": pro každý odehraný zápas sezóna,
+ * velikost naší soupisky a góly našeho týmu s vyplněným střelcem.
+ * Filtrování (sezóna, jen plné soupisky) dělá klient.
  */
-async function loadTeamScorers(supabase: Supabase) {
-  const [goals, roster, { count: playedCount }] = await Promise.all([
+async function loadTeamScorerMatches(supabase: Supabase): Promise<TeamScorerMatch[]> {
+  const [matches, goals, roster] = await Promise.all([
+    fetchAllRows<{ id: string; season: string; status: string }>(supabase, "matches", "id, season, status"),
     fetchAllRows<ScorerGoal & { match_id: string }>(
       supabase,
       "goals",
@@ -43,39 +44,36 @@ async function loadTeamScorers(supabase: Supabase) {
       "match_players",
       "id, match_id, is_home, is_my_player"
     ),
-    supabase.from("matches").select("id", { count: "exact", head: true }).neq("status", "not_started"),
   ]);
 
-  const rosterByMatch = new Map<string, typeof roster>();
-  for (const r of roster) {
-    const list = rosterByMatch.get(r.match_id);
-    if (list) list.push(r);
-    else rosterByMatch.set(r.match_id, [r]);
-  }
-  const goalsByMatch = new Map<string, typeof goals>();
-  for (const g of goals) {
-    const list = goalsByMatch.get(g.match_id);
-    if (list) list.push(g);
-    else goalsByMatch.set(g.match_id, [g]);
-  }
-
-  const counted: ScorerGoal[] = [];
-  let matchesWithScorers = 0;
-  for (const [matchId, matchGoals] of goalsByMatch) {
-    const ours = ourGoals(matchGoals, deriveOurSide(rosterByMatch.get(matchId) ?? [])).filter(
-      (g) => g.scorer_player_id || g.scorer_teammate_id || g.scorer_name
-    );
-    if (ours.length > 0) {
-      matchesWithScorers += 1;
-      counted.push(...ours);
+  const group = <T extends { match_id: string }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    for (const r of rows) {
+      const list = map.get(r.match_id);
+      if (list) list.push(r);
+      else map.set(r.match_id, [r]);
     }
-  }
-
-  return {
-    rows: scorerTotals(counted).filter((r) => r.name !== UNKNOWN_SCORER),
-    matchesWithScorers,
-    playedCount: playedCount ?? 0,
+    return map;
   };
+  const rosterByMatch = group(roster);
+  const goalsByMatch = group(goals);
+
+  return matches
+    .filter((m) => m.status !== "not_started")
+    .map((m) => {
+      const matchRoster = rosterByMatch.get(m.id) ?? [];
+      const side = deriveOurSide(matchRoster);
+      const ourRoster = side === null ? matchRoster : matchRoster.filter((r) => r.is_home === side);
+      const scored = ourGoals(goalsByMatch.get(m.id) ?? [], side)
+        .filter((g) => g.scorer_player_id || g.scorer_teammate_id || g.scorer_name)
+        .map(({ is_home_goal, scorer_player_id, scorer_teammate_id, scorer_name }) => ({
+          is_home_goal,
+          scorer_player_id,
+          scorer_teammate_id,
+          scorer_name,
+        }));
+      return { id: m.id, season: m.season, rosterSize: ourRoster.length, goals: scored };
+    });
 }
 
 export default async function StatsPage() {
@@ -106,10 +104,10 @@ export default async function StatsPage() {
   // Get quick stats for all players in 2 queries
   const playerIds = players.map((p) => p.id);
 
-  const [{ data: matchPlayerRows }, { data: goalRows }, teamScorers] = await Promise.all([
+  const [{ data: matchPlayerRows }, { data: goalRows }, teamScorerMatches] = await Promise.all([
     supabase.from("match_players").select("player_id").in("player_id", playerIds),
     supabase.from("goals").select("scorer_player_id").in("scorer_player_id", playerIds),
-    loadTeamScorers(supabase),
+    loadTeamScorerMatches(supabase),
   ]);
 
   const matchCountMap = new Map<string, number>();
@@ -173,17 +171,7 @@ export default async function StatsPage() {
         ))}
       </div>
 
-      {teamScorers.rows.length > 0 && (
-        <div className="mt-8">
-          <ScorerTable rows={teamScorers.rows} title="Střelci týmu" />
-          <p className="mt-2 text-xs text-zinc-500">
-            Statistika z {teamScorers.matchesWithScorers}{" "}
-            {teamScorers.matchesWithScorers === 1 ? "zápasu" : "zápasů"} s vyplněnými střelci
-            {teamScorers.playedCount > 0 && ` (z celkem ${teamScorers.playedCount} odehraných)`}.
-            Starší zápasy střelce zapsané nemají, proto čísla nejsou úplná.
-          </p>
-        </div>
-      )}
+      <TeamScorers matches={teamScorerMatches} />
     </div>
   );
 }
